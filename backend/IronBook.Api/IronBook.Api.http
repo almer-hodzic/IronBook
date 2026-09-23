@@ -1,0 +1,6 @@
+@IronBook.Api_HostAddress = http://localhost:5100
+
+GET {{IronBook.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
