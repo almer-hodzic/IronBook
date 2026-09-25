@@ -1,24 +1,20 @@
 namespace IronBook.Domain.Entities;
 
-public class Center
+public class MembershipPlan
 {
     public int Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
-    public string Location { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
-    public int Capacity { get; set; }
+    public decimal MonthlyPrice { get; set; }
+
+    public string? Benefits { get; set; }
 
     public bool IsActive { get; set; } = true;
 
-    public string? Amenities { get; set; }
-
-    public string? Notes { get; set; }
-
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    public ICollection<TrainerCenterAssignment> TrainerCenterAssignments { get; set; } = [];
 
     public ICollection<MembershipPlanCenter> MembershipPlanCenters { get; set; } = [];
 

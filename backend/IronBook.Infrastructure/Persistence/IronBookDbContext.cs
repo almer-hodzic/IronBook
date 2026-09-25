@@ -18,6 +18,12 @@ public class IronBookDbContext : DbContext
 
     public DbSet<TrainerCenterAssignment> TrainerCenterAssignments => Set<TrainerCenterAssignment>();
 
+    public DbSet<MembershipPlan> MembershipPlans => Set<MembershipPlan>();
+
+    public DbSet<MembershipPlanCenter> MembershipPlanCenters => Set<MembershipPlanCenter>();
+
+    public DbSet<Membership> Memberships => Set<Membership>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
