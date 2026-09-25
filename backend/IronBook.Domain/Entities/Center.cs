@@ -17,4 +17,6 @@ public class Center
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<TrainerCenterAssignment> TrainerCenterAssignments { get; set; } = [];
 }

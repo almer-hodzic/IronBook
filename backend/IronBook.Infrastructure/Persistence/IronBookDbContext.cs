@@ -11,4 +11,17 @@ public class IronBookDbContext : DbContext
     }
 
     public DbSet<Center> Centers => Set<Center>();
+
+    public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();
+
+    public DbSet<TrainerProfile> TrainerProfiles => Set<TrainerProfile>();
+
+    public DbSet<TrainerCenterAssignment> TrainerCenterAssignments => Set<TrainerCenterAssignment>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(IronBookDbContext).Assembly);
+    }
 }
