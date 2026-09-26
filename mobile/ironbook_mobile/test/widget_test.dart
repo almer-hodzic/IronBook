@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ironbook_mobile/main.dart';
@@ -7,6 +8,6 @@ void main() {
     await tester.pumpWidget(const IronBookMobileApp());
 
     expect(find.text('IronBook'), findsOneWidget);
-    expect(find.text('Member and Trainer mobile app'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }
