@@ -10,6 +10,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ICenterReadService, CenterReadService>();
+builder.Services.AddScoped<IAdminCenterService, AdminCenterService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();
