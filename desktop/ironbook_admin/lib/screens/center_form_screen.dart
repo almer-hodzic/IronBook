@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/admin_center.dart';
 import '../services/admin_center_api_service.dart';
+import '../theme/ironbook_admin_colors.dart';
+import '../widgets/admin_primitives.dart';
+import 'admin_shell.dart';
 
 class CenterFormScreen extends StatefulWidget {
   const CenterFormScreen({
@@ -122,68 +125,73 @@ class _CenterFormScreenState extends State<CenterFormScreen> {
   Widget build(BuildContext context) {
     final centerFuture = _centerFuture;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Center' : 'Add Center')),
-      body: SafeArea(
-        child: centerFuture == null
-            ? _CenterFormBody(
-                formKey: _formKey,
-                nameController: _nameController,
-                locationController: _locationController,
-                capacityController: _capacityController,
-                amenitiesController: _amenitiesController,
-                notesController: _notesController,
-                isActive: _isActive,
-                isSaving: _isSaving,
-                onActiveChanged: (value) => setState(() => _isActive = value),
-                onSave: _save,
-              )
-            : FutureBuilder<AdminCenter>(
-                future: centerFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return _FormError(
-                      message: snapshot.error.toString(),
-                      onRetry: () {
-                        setState(() {
-                          _centerFuture = widget.centerApiService.getCenter(
-                            widget.centerId!,
-                          );
-                        });
-                      },
-                    );
-                  }
-
-                  final center = snapshot.data;
-                  if (center == null) {
-                    return const _FormError(
-                      message: 'No center data was returned.',
-                    );
-                  }
-
-                  _applyCenter(center);
-
-                  return _CenterFormBody(
-                    formKey: _formKey,
-                    nameController: _nameController,
-                    locationController: _locationController,
-                    capacityController: _capacityController,
-                    amenitiesController: _amenitiesController,
-                    notesController: _notesController,
-                    isActive: _isActive,
-                    isSaving: _isSaving,
-                    center: center,
-                    onActiveChanged: (value) =>
-                        setState(() => _isActive = value),
-                    onSave: _save,
-                  );
-                },
-              ),
+    return AdminFormPage(
+      title: _isEditing ? 'Center Details' : 'Add New Center',
+      subtitle: _isEditing ? 'Update center information and active status.' : 'Create a new center location with operational and service details.',
+      actions: AdminButton.secondary(
+        onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+        icon: Icons.arrow_back,
+        label: 'Back to Centers',
       ),
+      child: centerFuture == null
+          ? _CenterFormBody(
+              formKey: _formKey,
+              nameController: _nameController,
+              locationController: _locationController,
+              capacityController: _capacityController,
+              amenitiesController: _amenitiesController,
+              notesController: _notesController,
+              isActive: _isActive,
+              isSaving: _isSaving,
+              onActiveChanged: (value) => setState(() => _isActive = value),
+              onSave: _save,
+            )
+          : FutureBuilder<AdminCenter>(
+              future: centerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const _FormStateCard.loading();
+                }
+
+                if (snapshot.hasError) {
+                  return _FormStateCard.error(
+                    message: snapshot.error.toString(),
+                    onRetry: () {
+                      setState(() {
+                        _centerFuture = widget.centerApiService.getCenter(
+                          widget.centerId!,
+                        );
+                      });
+                    },
+                  );
+                }
+
+                final center = snapshot.data;
+                if (center == null) {
+                  return const _FormStateCard(
+                    icon: Icons.error_outline,
+                    title: 'Center details could not be loaded',
+                    message: 'No center data was returned.',
+                  );
+                }
+
+                _applyCenter(center);
+
+                return _CenterFormBody(
+                  formKey: _formKey,
+                  nameController: _nameController,
+                  locationController: _locationController,
+                  capacityController: _capacityController,
+                  amenitiesController: _amenitiesController,
+                  notesController: _notesController,
+                  isActive: _isActive,
+                  isSaving: _isSaving,
+                  center: center,
+                  onActiveChanged: (value) => setState(() => _isActive = value),
+                  onSave: _save,
+                );
+              },
+            ),
     );
   }
 
@@ -222,153 +230,156 @@ class _CenterFormBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isEditing = center != null;
 
-    return Container(
-      color: const Color(0xFFF5F7FA),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 840),
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: const BorderSide(color: Color(0xFFDDE3EA)),
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isEditing ? 'Center Details' : 'New Center',
-                      style: theme.textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isEditing
-                          ? 'Update center information and active status.'
-                          : 'Create a center record for the admin catalog.',
-                    ),
-                    if (center != null) ...[
-                      const SizedBox(height: 18),
-                      _MetadataRow(center: center!),
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (center != null) ...[
+            _MetadataRow(center: center!),
+            const SizedBox(height: 14),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final twoColumns = constraints.maxWidth >= 680;
+              if (!twoColumns) {
+                return Column(children: _fieldRows());
+              }
+
+              return Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _nameField()),
+                      const SizedBox(width: 14),
+                      Expanded(child: _locationField()),
                     ],
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Name',
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLength: 150,
-                            validator: _validateRequired,
-                          ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(width: 220, child: _capacityField()),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: _ActiveStatusCard(
+                          isActive: isActive,
+                          isSaving: isSaving,
+                          onChanged: onActiveChanged,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: locationController,
-                            decoration: const InputDecoration(
-                              labelText: 'Location',
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLength: 150,
-                            validator: _validateRequired,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 220,
-                          child: TextFormField(
-                            controller: capacityController,
-                            decoration: const InputDecoration(
-                              labelText: 'Capacity',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: _validateCapacity,
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Active center'),
-                            subtitle: const Text(
-                              'Inactive centers stay stored but are hidden from member browsing.',
-                            ),
-                            value: isActive,
-                            onChanged: isSaving ? null : onActiveChanged,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    TextFormField(
-                      controller: amenitiesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Amenities',
-                        border: OutlineInputBorder(),
                       ),
-                      minLines: 3,
-                      maxLines: 5,
-                      maxLength: 1000,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes',
-                        border: OutlineInputBorder(),
-                      ),
-                      minLines: 3,
-                      maxLines: 6,
-                      maxLength: 2000,
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: isSaving
-                              ? null
-                              : () => Navigator.of(context).pop(false),
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text('Cancel'),
-                        ),
-                        const Spacer(),
-                        FilledButton.icon(
-                          onPressed: isSaving ? null : onSave,
-                          icon: isSaving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.save_outlined),
-                          label: Text(isSaving ? 'Saving...' : 'Save Center'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          AdminFieldLabel(
+            label: 'Amenities / Services',
+            child: TextFormField(
+              controller: amenitiesController,
+              decoration: const InputDecoration(
+                hintText: 'Strength zone, recovery lounge, group studio...',
               ),
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 1000,
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          AdminFieldLabel(
+            label: 'Operational Note / Description',
+            child: TextFormField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                hintText: 'Short center summary or operational notes.',
+              ),
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 2000,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              AdminStatusChip(
+                label: isEditing ? 'API-loaded details' : 'New database row',
+                variant: AdminStatusVariant.accent,
+              ),
+              const Spacer(),
+              AdminButton.secondary(
+                onPressed: isSaving
+                    ? null
+                    : () => Navigator.of(context).pop(false),
+                icon: Icons.close,
+                label: 'Cancel',
+              ),
+              const SizedBox(width: 8),
+              AdminButton.primary(
+                onPressed: isSaving ? null : onSave,
+                icon: isSaving ? null : Icons.save_outlined,
+                label: isSaving ? 'Saving...' : 'Save Center',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _fieldRows() {
+    return [
+      _nameField(),
+      const SizedBox(height: 14),
+      _locationField(),
+      const SizedBox(height: 14),
+      _capacityField(),
+      const SizedBox(height: 14),
+      _ActiveStatusCard(
+        isActive: isActive,
+        isSaving: isSaving,
+        onChanged: onActiveChanged,
+      ),
+    ];
+  }
+
+  Widget _nameField() {
+    return AdminFieldLabel(
+      label: 'Center Name',
+      child: TextFormField(
+        controller: nameController,
+        decoration: const InputDecoration(hintText: 'Enter center name'),
+        maxLength: 150,
+        validator: _validateRequired,
+      ),
+    );
+  }
+
+  Widget _locationField() {
+    return AdminFieldLabel(
+      label: 'Location',
+      child: TextFormField(
+        controller: locationController,
+        decoration: const InputDecoration(hintText: 'City or neighborhood'),
+        maxLength: 150,
+        validator: _validateRequired,
+      ),
+    );
+  }
+
+  Widget _capacityField() {
+    return AdminFieldLabel(
+      label: 'Capacity',
+      hint: 'Use 0 when capacity is not configured.',
+      child: TextFormField(
+        controller: capacityController,
+        decoration: const InputDecoration(hintText: '0'),
+        keyboardType: TextInputType.number,
+        validator: _validateCapacity,
       ),
     );
   }
@@ -400,6 +411,57 @@ class _CenterFormBody extends StatelessWidget {
   }
 }
 
+class _ActiveStatusCard extends StatelessWidget {
+  const _ActiveStatusCard({
+    required this.isActive,
+    required this.isSaving,
+    required this.onChanged,
+  });
+
+  final bool isActive;
+  final bool isSaving;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminRowCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Active center',
+                  style: TextStyle(
+                    color: IronBookAdminColors.slate800,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Inactive centers stay stored but are hidden from member browsing.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          AdminStatusChip(
+            label: isActive ? 'Active' : 'Inactive',
+            variant: isActive
+                ? AdminStatusVariant.success
+                : AdminStatusVariant.neutral,
+          ),
+          const SizedBox(width: 12),
+          Switch(value: isActive, onChanged: isSaving ? null : onChanged),
+        ],
+      ),
+    );
+  }
+}
+
 class _MetadataRow extends StatelessWidget {
   const _MetadataRow({required this.center});
 
@@ -408,13 +470,19 @@ class _MetadataRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 12,
+      spacing: 8,
       runSpacing: 8,
       children: [
         _MetadataPill(label: 'ID', value: center.id.toString()),
         _MetadataPill(
           label: 'Created',
           value: center.createdAt.toLocal().toString().split('.').first,
+        ),
+        AdminStatusChip(
+          label: center.isActive ? 'Active' : 'Inactive',
+          variant: center.isActive
+              ? AdminStatusVariant.success
+              : AdminStatusVariant.neutral,
         ),
       ],
     );
@@ -429,44 +497,89 @@ class _MetadataPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF0F6),
-        borderRadius: BorderRadius.circular(8),
+        color: IronBookAdminColors.slate100,
+        border: Border.all(color: IronBookAdminColors.border),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text('$label: $value'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          '$label: $value',
+          style: const TextStyle(
+            color: IronBookAdminColors.slate600,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _FormError extends StatelessWidget {
-  const _FormError({required this.message, this.onRetry});
+class _FormStateCard extends StatelessWidget {
+  const _FormStateCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  }) : loading = false;
 
+  const _FormStateCard.loading()
+    : icon = Icons.hourglass_empty,
+      title = 'Loading center details',
+      message = 'Please wait while the center is loaded from the API.',
+      action = null,
+      loading = true;
+
+  factory _FormStateCard.error({
+    required String message,
+    required VoidCallback onRetry,
+  }) {
+    return _FormStateCard(
+      icon: Icons.error_outline,
+      title: 'Center details could not be loaded',
+      message: message,
+      action: AdminButton.primary(
+        onPressed: onRetry,
+        icon: Icons.refresh,
+        label: 'Retry',
+      ),
+    );
+  }
+
+  final IconData icon;
+  final String title;
   final String message;
-  final VoidCallback? onRetry;
+  final Widget? action;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return SizedBox(
+      height: 280,
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 44),
-            const SizedBox(height: 16),
-            const Text('Center details could not be loaded'),
+            if (loading)
+              const CircularProgressIndicator()
+            else
+              Icon(icon, color: IronBookAdminColors.slate500, size: 42),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            if (action != null) ...[const SizedBox(height: 14), action!],
           ],
         ),
       ),

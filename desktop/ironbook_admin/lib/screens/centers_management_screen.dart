@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/admin_center.dart';
 import '../services/admin_center_api_service.dart';
+import '../theme/ironbook_admin_colors.dart';
+import '../widgets/admin_primitives.dart';
+import 'admin_shell.dart';
 import 'center_form_screen.dart';
 
 class CentersManagementScreen extends StatefulWidget {
@@ -82,136 +85,107 @@ class _CentersManagementScreenState extends State<CentersManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      color: const Color(0xFFF5F7FA),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Centers Management',
-                          style: theme.textTheme.headlineMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Manage branch records stored in the IronBook database.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _openAddCenter,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add New Center'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _SearchBar(
-                controller: _searchController,
-                onSearch: () => _loadCenters(search: _searchController.text),
-                onClear: () {
-                  _searchController.clear();
-                  _loadCenters();
-                },
-              ),
-              const SizedBox(height: 18),
-              Expanded(
-                child: FutureBuilder<List<AdminCenter>>(
-                  future: _centersFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const _CenteredMessage.loading();
-                    }
-
-                    if (snapshot.hasError) {
-                      return _CenteredMessage.error(
-                        message: snapshot.error.toString(),
-                        onRetry: () => _loadCenters(search: _activeSearch),
-                      );
-                    }
-
-                    final centers = snapshot.data ?? const <AdminCenter>[];
-                    if (centers.isEmpty) {
-                      return _CenteredMessage.empty(
-                        activeSearch: _activeSearch,
-                        onRefresh: () => _loadCenters(search: _activeSearch),
-                      );
-                    }
-
-                    return _CentersTable(
-                      centers: centers,
-                      onEdit: _openEditCenter,
-                      onRefresh: () => _loadCenters(search: _activeSearch),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+    return AdminPage(
+      title: 'Centers Management',
+      subtitle: 'Manage center locations, services, and operational status.',
+      actions: AdminButton.primary(
+        onPressed: _openAddCenter,
+        icon: Icons.add,
+        label: 'Add New Center',
       ),
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({
-    required this.controller,
-    required this.onSearch,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final VoidCallback onSearch;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
       children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              labelText: 'Search centers',
-              hintText: 'Search by name or location',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: (_) => onSearch(),
-          ),
+        _SearchStrip(
+          controller: _searchController,
+          activeSearch: _activeSearch,
+          onSearch: () => _loadCenters(search: _searchController.text),
+          onClear: () {
+            _searchController.clear();
+            _loadCenters();
+          },
         ),
-        const SizedBox(width: 12),
-        FilledButton.icon(
-          onPressed: onSearch,
-          icon: const Icon(Icons.search),
-          label: const Text('Search'),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: onClear,
-          icon: const Icon(Icons.clear),
-          label: const Text('Clear'),
+        FutureBuilder<List<AdminCenter>>(
+          future: _centersFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const _StatePanel.loading();
+            }
+
+            if (snapshot.hasError) {
+              return _StatePanel.error(
+                message: snapshot.error.toString(),
+                onRetry: () => _loadCenters(search: _activeSearch),
+              );
+            }
+
+            final centers = snapshot.data ?? const <AdminCenter>[];
+            if (centers.isEmpty) {
+              return _StatePanel.empty(
+                activeSearch: _activeSearch,
+                onRefresh: () => _loadCenters(search: _activeSearch),
+              );
+            }
+
+            return _CentersPanel(
+              centers: centers,
+              onEdit: _openEditCenter,
+              onRefresh: () => _loadCenters(search: _activeSearch),
+            );
+          },
         ),
       ],
     );
   }
 }
 
-class _CentersTable extends StatelessWidget {
-  const _CentersTable({
+class _SearchStrip extends StatelessWidget {
+  const _SearchStrip({
+    required this.controller,
+    required this.activeSearch,
+    required this.onSearch,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final String activeSearch;
+  final VoidCallback onSearch;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminPanel(
+      title: 'Search',
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 18),
+                hintText: 'Search by name or location',
+              ),
+              onSubmitted: (_) => onSearch(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          AdminButton.primary(
+            onPressed: onSearch,
+            icon: Icons.search,
+            label: 'Search',
+          ),
+          const SizedBox(width: 8),
+          AdminButton.secondary(
+            onPressed: onClear,
+            icon: Icons.clear,
+            label: activeSearch.isEmpty ? 'Clear' : 'Clear Search',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CentersPanel extends StatelessWidget {
+  const _CentersPanel({
     required this.centers,
     required this.onEdit,
     required this.onRefresh,
@@ -223,67 +197,43 @@ class _CentersTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFDDE3EA)),
+    return AdminPanel(
+      title: 'Center Locations',
+      action: IconButton(
+        tooltip: 'Refresh',
+        onPressed: onRefresh,
+        icon: const Icon(Icons.refresh, size: 18),
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 12, 10),
-            child: Row(
-              children: [
-                Text('${centers.length} centers'),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
+          const _CentersHeader(),
+          const SizedBox(height: 8),
+          for (final center in centers) ...[
+            _CenterRow(center: center, onEdit: () => onEdit(center)),
+            if (center != centers.last) const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CentersHeader extends StatelessWidget {
+  const _CentersHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Expanded(flex: 5, child: _HeaderText('Center')),
+          Expanded(flex: 3, child: _HeaderText('Capacity')),
           Expanded(
-            child: SingleChildScrollView(
-              child: SizedBox(
-                width: double.infinity,
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Name')),
-                    DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Capacity')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: [
-                    for (final center in centers)
-                      DataRow(
-                        cells: [
-                          DataCell(Text(center.name)),
-                          DataCell(Text(center.location)),
-                          DataCell(
-                            Text(
-                              center.capacity > 0
-                                  ? center.capacity.toString()
-                                  : 'Not configured',
-                            ),
-                          ),
-                          DataCell(_StatusChip(isActive: center.isActive)),
-                          DataCell(
-                            TextButton.icon(
-                              onPressed: () => onEdit(center),
-                              icon: const Icon(Icons.edit_outlined, size: 18),
-                              label: const Text('Edit'),
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
+            flex: 4,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _HeaderText('Status & Actions'),
             ),
           ),
         ],
@@ -292,79 +242,175 @@ class _CentersTable extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.isActive});
+class _HeaderText extends StatelessWidget {
+  const _HeaderText(this.label);
 
-  final bool isActive;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final background = isActive
-        ? const Color(0xFFE2F5EA)
-        : const Color(0xFFF1F3F6);
-    final foreground = isActive
-        ? const Color(0xFF176B3A)
-        : const Color(0xFF5C6673);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        isActive ? 'Active' : 'Inactive',
-        style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
+    return Text(
+      label.toUpperCase(),
+      style: const TextStyle(
+        color: IronBookAdminColors.slate500,
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.8,
       ),
     );
   }
 }
 
-class _CenteredMessage extends StatelessWidget {
-  const _CenteredMessage({
+class _CenterRow extends StatelessWidget {
+  const _CenterRow({required this.center, required this.onEdit});
+
+  final AdminCenter center;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminRowCard(
+      onTap: onEdit,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  center.name,
+                  style: const TextStyle(
+                    color: IronBookAdminColors.slate800,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      color: IronBookAdminColors.slate500,
+                      size: 15,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        center.location,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: IronBookAdminColors.slate500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_hasText(center.amenities)) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    center.amenities!.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: IronBookAdminColors.slate600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AdminMetricCard(
+                label: 'Capacity',
+                value: center.capacity > 0
+                    ? center.capacity.toString()
+                    : 'Not configured',
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                AdminStatusChip(
+                  label: center.isActive ? 'Active' : 'Inactive',
+                  variant: center.isActive
+                      ? AdminStatusVariant.success
+                      : AdminStatusVariant.neutral,
+                ),
+                AdminButton.secondary(
+                  onPressed: onEdit,
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static bool _hasText(String? value) =>
+      value != null && value.trim().isNotEmpty;
+}
+
+class _StatePanel extends StatelessWidget {
+  const _StatePanel({
     required this.icon,
     required this.title,
     required this.message,
     this.action,
   }) : loading = false;
 
-  const _CenteredMessage.loading()
+  const _StatePanel.loading()
     : icon = Icons.hourglass_empty,
       title = 'Loading centers',
       message = 'Please wait while centers are loaded.',
       action = null,
       loading = true;
 
-  factory _CenteredMessage.error({
+  factory _StatePanel.error({
     required String message,
     required VoidCallback onRetry,
   }) {
-    return _CenteredMessage(
+    return _StatePanel(
       icon: Icons.cloud_off_outlined,
       title: 'Centers could not be loaded',
       message: message,
-      action: FilledButton.icon(
+      action: AdminButton.primary(
         onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
-        label: const Text('Retry'),
+        icon: Icons.refresh,
+        label: 'Retry',
       ),
     );
   }
 
-  factory _CenteredMessage.empty({
+  factory _StatePanel.empty({
     required String activeSearch,
     required VoidCallback onRefresh,
   }) {
-    return _CenteredMessage(
+    return _StatePanel(
       icon: Icons.apartment_outlined,
       title: activeSearch.isEmpty ? 'No centers yet' : 'No matching centers',
       message: activeSearch.isEmpty
           ? 'Create the first center to start managing branch data.'
           : 'No centers matched the current search.',
-      action: OutlinedButton.icon(
+      action: AdminButton.secondary(
         onPressed: onRefresh,
-        icon: const Icon(Icons.refresh),
-        label: const Text('Refresh'),
+        icon: Icons.refresh,
+        label: 'Refresh',
       ),
     );
   }
@@ -377,28 +423,36 @@ class _CenteredMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (loading)
-              const CircularProgressIndicator()
-            else
-              Icon(icon, size: 44, color: const Color(0xFF607089)),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge,
-              textAlign: TextAlign.center,
+    return AdminPanel(
+      title: title,
+      child: SizedBox(
+        height: 260,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (loading)
+                  const CircularProgressIndicator()
+                else
+                  Icon(icon, size: 42, color: IronBookAdminColors.slate500),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                if (action != null) ...[const SizedBox(height: 14), action!],
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-            if (action != null) ...[const SizedBox(height: 16), action!],
-          ],
+          ),
         ),
       ),
     );
