@@ -4,6 +4,7 @@ import '../models/center.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import 'membership_plans_screen.dart';
 
 class CenterDetailsScreen extends StatefulWidget {
   const CenterDetailsScreen({
@@ -132,7 +133,10 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                     icon: Icons.notes_outlined,
                     body: center.notes!.trim(),
                   ),
-                const _DeferredPreviewSection(),
+                _MembershipAccessSection(
+                  center: center,
+                  centerApiService: widget.centerApiService,
+                ),
               ],
             );
           },
@@ -465,8 +469,14 @@ class _InfoSection extends StatelessWidget {
   }
 }
 
-class _DeferredPreviewSection extends StatelessWidget {
-  const _DeferredPreviewSection();
+class _MembershipAccessSection extends StatelessWidget {
+  const _MembershipAccessSection({
+    required this.center,
+    required this.centerApiService,
+  });
+
+  final FitnessCenter center;
+  final CenterApiService centerApiService;
 
   @override
   Widget build(BuildContext context) {
@@ -487,17 +497,33 @@ class _DeferredPreviewSection extends StatelessWidget {
                   ),
                 ),
               ),
-              IronBookTag(label: 'Later'),
+              IronBookTag(label: 'Center Plans'),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Memberships, trainers, and group sessions will appear here after those real backend features are implemented.',
+            'Review active membership packages assigned to this center.',
             style: TextStyle(
               color: IronBookMobileColors.slate500,
               fontSize: 12,
               height: 1.45,
             ),
+          ),
+          const SizedBox(height: 12),
+          IronBookMobileButton.primary(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => MembershipPlansScreen(
+                    centerId: center.id,
+                    centerName: center.name,
+                    centerApiService: centerApiService,
+                  ),
+                ),
+              );
+            },
+            label: 'View Membership Options',
+            icon: Icons.event_available_outlined,
           ),
         ],
       ),

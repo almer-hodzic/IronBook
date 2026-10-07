@@ -1,17 +1,43 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_center_api_service.dart';
+import '../services/admin_membership_plan_api_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'centers_management_screen.dart';
+import 'membership_plans_screen.dart';
 
-class AdminShell extends StatelessWidget {
-  const AdminShell({super.key, required this.centerApiService});
+enum AdminSection { centers, memberships }
+
+class AdminShell extends StatefulWidget {
+  const AdminShell({
+    super.key,
+    required this.centerApiService,
+    required this.membershipPlanApiService,
+  });
 
   final AdminCenterApiService centerApiService;
+  final AdminMembershipPlanApiService membershipPlanApiService;
+
+  @override
+  State<AdminShell> createState() => _AdminShellState();
+}
+
+class _AdminShellState extends State<AdminShell> {
+  AdminSection _activeSection = AdminSection.centers;
 
   @override
   Widget build(BuildContext context) {
+    final content = switch (_activeSection) {
+      AdminSection.centers => CentersManagementScreen(
+        centerApiService: widget.centerApiService,
+      ),
+      AdminSection.memberships => MembershipPlansScreen(
+        membershipPlanApiService: widget.membershipPlanApiService,
+        centerApiService: widget.centerApiService,
+      ),
+    };
+
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -49,12 +75,15 @@ class AdminShell extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: Row(
                       children: [
-                        const _AdminSidebar(),
-                        Expanded(
-                          child: CentersManagementScreen(
-                            centerApiService: centerApiService,
-                          ),
+                        _AdminSidebar(
+                          activeSection: _activeSection,
+                          onSectionChanged: (section) {
+                            setState(() {
+                              _activeSection = section;
+                            });
+                          },
                         ),
+                        Expanded(child: content),
                       ],
                     ),
                   ),
@@ -208,7 +237,13 @@ class AdminFormPage extends StatelessWidget {
 }
 
 class _AdminSidebar extends StatelessWidget {
-  const _AdminSidebar();
+  const _AdminSidebar({
+    required this.activeSection,
+    required this.onSectionChanged,
+  });
+
+  final AdminSection activeSection;
+  final ValueChanged<AdminSection> onSectionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -261,37 +296,39 @@ class _AdminSidebar extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.dashboard_outlined,
               label: 'Dashboard',
               enabled: false,
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.apartment,
               label: 'Centers',
-              selected: true,
+              selected: activeSection == AdminSection.centers,
+              onTap: () => onSectionChanged(AdminSection.centers),
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.assignment_outlined,
               label: 'Coaching Requests',
               enabled: false,
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.groups_outlined,
               label: 'Trainers',
               enabled: false,
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.event_available_outlined,
               label: 'Memberships',
-              enabled: false,
+              selected: activeSection == AdminSection.memberships,
+              onTap: () => onSectionChanged(AdminSection.memberships),
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.payments_outlined,
               label: 'Payments',
               enabled: false,
             ),
-            const _SidebarItem(
+            _SidebarItem(
               icon: Icons.insert_chart_outlined,
               label: 'Reports',
               enabled: false,
@@ -319,7 +356,7 @@ class _AdminSidebar extends StatelessWidget {
                     ),
                     SizedBox(height: 6),
                     Text(
-                      'Only Centers are available in this slice.',
+                      'Centers and Memberships are backed by the real API.',
                       style: TextStyle(
                         color: IronBookAdminColors.lime900,
                         fontSize: 12,
@@ -369,12 +406,14 @@ class _SidebarItem extends StatelessWidget {
     required this.label,
     this.selected = false,
     this.enabled = true,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final bool enabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -388,7 +427,12 @@ class _SidebarItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Tooltip(
         message: enabled || selected ? label : '$label is not implemented yet',
-        child: DecoratedBox(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: enabled || selected ? onTap : null,
+            child: DecoratedBox(
           decoration: BoxDecoration(
             color: selected ? IronBookAdminColors.slate900 : Colors.transparent,
             border: Border.all(
@@ -418,6 +462,8 @@ class _SidebarItem extends StatelessWidget {
                 if (!enabled && !selected)
                   const AdminStatusChip(label: 'Later'),
               ],
+            ),
+          ),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../app_config.dart';
 import '../models/center.dart';
+import '../models/membership_plan.dart';
 
 class CenterApiException implements Exception {
   const CenterApiException(this.message);
@@ -54,6 +55,56 @@ class CenterApiService {
 
     try {
       return FitnessCenter.fromJson(_readObject(_decodeJson(response.body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<List<MembershipPlan>> getMembershipPlansForCenter(int centerId) async {
+    final response = await _get('/api/centers/$centerId/membership-plans');
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Membership plans could not be loaded.');
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException(
+        'Membership plans response was not in the expected format.',
+      );
+    }
+
+    try {
+      return decoded
+          .map((item) => MembershipPlan.fromJson(_readObject(item)))
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<MembershipPlan> getMembershipPlanForCenter(
+    int centerId,
+    int planId,
+  ) async {
+    final response = await _get(
+      '/api/centers/$centerId/membership-plans/$planId',
+    );
+
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'Membership plan is not available for this center.',
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Membership plan details could not be loaded.',
+      );
+    }
+
+    try {
+      return MembershipPlan.fromJson(_readObject(_decodeJson(response.body)));
     } on FormatException catch (error) {
       throw CenterApiException(error.message);
     }
