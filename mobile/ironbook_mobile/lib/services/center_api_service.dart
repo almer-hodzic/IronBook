@@ -7,6 +7,7 @@ import '../app_config.dart';
 import '../models/center.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
+import '../models/my_membership.dart';
 
 class CenterApiException implements Exception {
   const CenterApiException(this.message);
@@ -142,6 +143,56 @@ class CenterApiService {
 
     throw const CenterApiException(
       'Membership checkout could not be completed.',
+    );
+  }
+
+  Future<MyMembership?> getMyMembership() async {
+    final response = await _get('/api/memberships/my');
+
+    if (response.statusCode == 404) {
+      return null;
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Membership details could not be loaded.');
+    }
+
+    try {
+      return MyMembership.fromJson(_readObject(_decodeJson(response.body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<CheckInValidationResult> validateCheckIn({
+    required String qrAccessToken,
+    required int centerId,
+  }) async {
+    final response = await _post('/api/check-ins/validate', {
+      'qrAccessToken': qrAccessToken,
+      'centerId': centerId,
+    });
+
+    if (response.statusCode == 200) {
+      try {
+        return CheckInValidationResult.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException catch (error) {
+        throw CenterApiException(error.message);
+      }
+    }
+
+    if (response.statusCode == 400 ||
+        response.statusCode == 404 ||
+        response.statusCode == 409) {
+      throw CenterApiException(
+        _readProblemMessage(response.body, 'Check-in validation was rejected.'),
+      );
+    }
+
+    throw const CenterApiException(
+      'Check-in validation could not be completed.',
     );
   }
 

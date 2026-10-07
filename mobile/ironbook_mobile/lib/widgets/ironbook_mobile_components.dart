@@ -310,27 +310,41 @@ class IronBookMobileButton extends StatelessWidget {
 }
 
 class IronBookBottomNav extends StatelessWidget {
-  const IronBookBottomNav({super.key});
+  const IronBookBottomNav({super.key, this.activeLabel = 'Home'});
+
+  final String activeLabel;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
+      children: [
         Expanded(
           child: _BottomNavItem(
             icon: Icons.home_outlined,
             label: 'Home',
-            active: true,
+            active: activeLabel == 'Home',
           ),
         ),
         Expanded(
-          child: _BottomNavItem(icon: Icons.fitness_center, label: 'Classes'),
+          child: _BottomNavItem(
+            icon: Icons.fitness_center,
+            label: 'Classes',
+            active: activeLabel == 'Classes',
+          ),
         ),
         Expanded(
-          child: _BottomNavItem(icon: Icons.groups_outlined, label: 'Trainers'),
+          child: _BottomNavItem(
+            icon: Icons.groups_outlined,
+            label: 'Trainers',
+            active: activeLabel == 'Trainers',
+          ),
         ),
         Expanded(
-          child: _BottomNavItem(icon: Icons.person_outline, label: 'Profile'),
+          child: _BottomNavItem(
+            icon: Icons.person_outline,
+            label: 'Profile',
+            active: activeLabel == 'Profile',
+          ),
         ),
       ],
     );

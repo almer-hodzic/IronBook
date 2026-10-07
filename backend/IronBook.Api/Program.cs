@@ -1,6 +1,8 @@
 using IronBook.Application.Centers;
+using IronBook.Application.CheckIns;
 using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
+using IronBook.Infrastructure.CheckIns;
 using IronBook.Infrastructure.Centers;
 using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
@@ -17,7 +19,15 @@ builder.Services.AddScoped<ICenterReadService, CenterReadService>();
 builder.Services.AddScoped<IAdminCenterService, AdminCenterService>();
 builder.Services.AddScoped<IAdminMembershipPlanService, AdminMembershipPlanService>();
 builder.Services.AddScoped<IMemberMembershipPlanService, MemberMembershipPlanService>();
+builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
+builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
+{
+    var signingKey = builder.Configuration["QrAccess:SigningKey"];
+    return new MembershipAccessTokenService(signingKey ?? string.Empty);
+});
 builder.Services.AddScoped<IMembershipCheckoutService, MembershipCheckoutService>();
+builder.Services.AddScoped<IMyMembershipService, MyMembershipService>();
+builder.Services.AddScoped<ICheckInValidationService, CheckInValidationService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();

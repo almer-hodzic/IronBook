@@ -23,4 +23,6 @@ public class Center
     public ICollection<MembershipPlanCenter> MembershipPlanCenters { get; set; } = [];
 
     public ICollection<Membership> Memberships { get; set; } = [];
+
+    public ICollection<CheckIn> CheckIns { get; set; } = [];
 }

@@ -52,6 +52,7 @@ services:
       Jwt__Issuer: ${Jwt__Issuer:-IronBook}
       Jwt__Audience: ${Jwt__Audience:-IronBookClients}
       Jwt__SigningKey: ${Jwt__SigningKey:-replace_with_a_long_local_development_key}
+      QrAccess__SigningKey: ${QrAccess__SigningKey:-replace_with_long_local_qr_access_signing_key_32_chars_minimum}
     ports:
       - "5000:8080"
     depends_on:

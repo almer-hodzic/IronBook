@@ -4,6 +4,7 @@ import '../models/membership_checkout.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import 'my_membership_screen.dart';
 
 class MembershipConfirmationScreen extends StatelessWidget {
   const MembershipConfirmationScreen({
@@ -91,6 +92,21 @@ class MembershipConfirmationScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        IronBookMobileButton.primary(
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(
+                builder: (context) => MyMembershipScreen(
+                  centerApiService: centerApiService,
+                  initialCenterId: checkout.centerId,
+                  initialCenterName: checkout.centerName,
+                ),
+              ),
+            );
+          },
+          label: 'View My Membership',
+          icon: Icons.qr_code_2,
         ),
         IronBookMobileButton.secondary(
           onPressed: () =>

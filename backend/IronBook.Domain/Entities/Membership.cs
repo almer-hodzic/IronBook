@@ -27,4 +27,6 @@ public class Membership
     public Center Center { get; set; } = null!;
 
     public ICollection<Payment> Payments { get; set; } = [];
+
+    public ICollection<CheckIn> CheckIns { get; set; } = [];
 }

@@ -8,13 +8,15 @@ namespace IronBook.Infrastructure.Memberships;
 
 public sealed class MembershipCheckoutService : IMembershipCheckoutService
 {
-    private const string DevelopmentMemberEmail = "member@ironbook.local";
-
     private readonly IronBookDbContext _dbContext;
+    private readonly IDevelopmentMemberResolver _memberResolver;
 
-    public MembershipCheckoutService(IronBookDbContext dbContext)
+    public MembershipCheckoutService(
+        IronBookDbContext dbContext,
+        IDevelopmentMemberResolver memberResolver)
     {
         _dbContext = dbContext;
+        _memberResolver = memberResolver;
     }
 
     public async Task<MembershipCheckoutResult> CheckoutAsync(
@@ -27,7 +29,7 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
             return MembershipCheckoutResult.Invalid(errors);
         }
 
-        var member = await ResolveMemberAsync(request.MemberProfileId, cancellationToken);
+        var member = await _memberResolver.ResolveAsync(request.MemberProfileId, cancellationToken);
         if (member is null)
         {
             return MembershipCheckoutResult.Invalid(
@@ -131,15 +133,6 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
                 membership.Status.ToString(),
                 membership.StartDate,
                 membership.EndDate));
-    }
-
-    private async Task<MemberProfile?> ResolveMemberAsync(int? memberProfileId, CancellationToken cancellationToken)
-    {
-        var query = _dbContext.MemberProfiles.AsNoTracking().Where(member => member.IsActive);
-
-        return memberProfileId.HasValue
-            ? await query.SingleOrDefaultAsync(member => member.Id == memberProfileId.Value, cancellationToken)
-            : await query.SingleOrDefaultAsync(member => member.Email == DevelopmentMemberEmail, cancellationToken);
     }
 
     private static List<MembershipCheckoutValidationError> ValidateRequest(

@@ -5,6 +5,7 @@ import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'membership_plans_screen.dart';
+import 'my_membership_screen.dart';
 
 class CenterDetailsScreen extends StatefulWidget {
   const CenterDetailsScreen({
@@ -524,6 +525,22 @@ class _MembershipAccessSection extends StatelessWidget {
             },
             label: 'View Membership Options',
             icon: Icons.event_available_outlined,
+          ),
+          const SizedBox(height: 8),
+          IronBookMobileButton.secondary(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => MyMembershipScreen(
+                    centerApiService: centerApiService,
+                    initialCenterId: center.id,
+                    initialCenterName: center.name,
+                  ),
+                ),
+              );
+            },
+            label: 'View My Membership',
+            icon: Icons.qr_code_2,
           ),
         ],
       ),
