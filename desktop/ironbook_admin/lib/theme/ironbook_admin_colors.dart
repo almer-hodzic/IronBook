@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 class IronBookAdminColors {
   const IronBookAdminColors._();
 
+  static const adminBackground = Color(0xFFEDF3FB);
   static const pageTop = Color(0xFFF7F9FC);
   static const pageBottom = Color(0xFFEEF3F9);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceSoft = Color(0xFFF8FAFC);
+  static const surfacePanel = Color(0x99F8FAFC);
+  static const sidebarSurface = Color(0xB3F8FAFC);
   static const border = Color(0xFFE2E8F0);
+  static const adminBorder = Color(0xFFDBE6F5);
   static const borderStrong = Color(0xFFCBD5E1);
   static const slate900 = Color(0xFF0F172A);
   static const slate800 = Color(0xFF1E293B);
@@ -16,6 +20,7 @@ class IronBookAdminColors {
   static const slate500 = Color(0xFF64748B);
   static const slate400 = Color(0xFF94A3B8);
   static const slate100 = Color(0xFFF1F5F9);
+  static const slate50 = Color(0xFFF8FAFC);
   static const lime100 = Color(0xFFECFCCB);
   static const lime200 = Color(0xFFD9F99D);
   static const lime500 = Color(0xFF84CC16);

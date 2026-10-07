@@ -23,6 +23,13 @@ class AdminPanel extends StatelessWidget {
         color: IronBookAdminColors.surface,
         border: Border.all(color: IronBookAdminColors.border),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: IronBookAdminColors.slate900.withValues(alpha: 0.025),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,6 +214,44 @@ class AdminButton extends StatelessWidget {
     return _primary
         ? FilledButton(onPressed: onPressed, style: style, child: child)
         : OutlinedButton(onPressed: onPressed, style: style, child: child);
+  }
+}
+
+class AdminIconAction extends StatelessWidget {
+  const AdminIconAction({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: IconButton(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 18),
+          style: IconButton.styleFrom(
+            backgroundColor: IronBookAdminColors.surface,
+            disabledBackgroundColor: IronBookAdminColors.surface,
+            foregroundColor: IronBookAdminColors.slate600,
+            disabledForegroundColor: IronBookAdminColors.slate400,
+            side: const BorderSide(color: IronBookAdminColors.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

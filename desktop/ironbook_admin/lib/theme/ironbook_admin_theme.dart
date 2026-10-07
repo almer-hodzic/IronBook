@@ -14,7 +14,7 @@ class IronBookAdminTheme {
     return ThemeData(
       colorScheme: colorScheme,
       fontFamily: 'Segoe UI',
-      scaffoldBackgroundColor: IronBookAdminColors.pageBottom,
+      scaffoldBackgroundColor: IronBookAdminColors.adminBackground,
       useMaterial3: true,
       textTheme: const TextTheme(
         headlineMedium: TextStyle(
@@ -43,6 +43,15 @@ class IronBookAdminTheme {
           color: IronBookAdminColors.slate500,
           fontSize: 12,
           height: 1.35,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: IronBookAdminColors.slate600,
+          disabledForegroundColor: IronBookAdminColors.slate400,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
