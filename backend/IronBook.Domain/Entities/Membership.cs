@@ -25,4 +25,6 @@ public class Membership
     public MembershipPlan MembershipPlan { get; set; } = null!;
 
     public Center Center { get; set; } = null!;
+
+    public ICollection<Payment> Payments { get; set; } = [];
 }

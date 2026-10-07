@@ -4,6 +4,7 @@ import '../models/membership_plan.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import 'membership_checkout_screen.dart';
 
 class MembershipPlanDetailsScreen extends StatefulWidget {
   const MembershipPlanDetailsScreen({
@@ -109,7 +110,20 @@ class _MembershipPlanDetailsScreenState
                   ),
                 if (plan.benefitItems.isNotEmpty)
                   _BenefitsSection(benefits: plan.benefitItems),
-                const _UnavailableActionCard(),
+                _CheckoutActionCard(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => MembershipCheckoutScreen(
+                          centerId: widget.centerId,
+                          centerName: widget.centerName,
+                          plan: plan,
+                          centerApiService: widget.centerApiService,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             );
           },
@@ -308,32 +322,45 @@ class _InfoSection extends StatelessWidget {
   }
 }
 
-class _UnavailableActionCard extends StatelessWidget {
-  const _UnavailableActionCard();
+class _CheckoutActionCard extends StatelessWidget {
+  const _CheckoutActionCard({required this.onPressed});
+
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return IronBookMobileSection(
       muted: true,
-      child: Row(
-        children: const [
-          Icon(
-            Icons.payments_outlined,
-            color: IronBookMobileColors.slate500,
-            size: 18,
-          ),
-          SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              'Review & Payment will be available after the purchase flow is implemented.',
-              style: TextStyle(
-                color: IronBookMobileColors.slate500,
-                fontSize: 12,
-                height: 1.45,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.payments_outlined,
+                color: IronBookMobileColors.slate600,
+                size: 18,
               ),
-            ),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Review your monthly membership and choose how payment should be recorded.',
+                  style: TextStyle(
+                    color: IronBookMobileColors.slate600,
+                    fontSize: 12,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
           ),
-          IronBookTag(label: 'Later'),
+          const SizedBox(height: 12),
+          IronBookMobileButton.primary(
+            onPressed: onPressed,
+            label: 'Review & Payment',
+            icon: Icons.arrow_forward,
+          ),
         ],
       ),
     );

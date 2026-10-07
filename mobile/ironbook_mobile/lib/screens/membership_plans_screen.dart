@@ -62,8 +62,7 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
       children: [
         IronBookMobileHeader(
           title: 'Membership Options',
-          subtitle:
-              'Choose the best fit for training at ${widget.centerName}.',
+          subtitle: 'Choose the best fit for training at ${widget.centerName}.',
           onBack: () => Navigator.of(context).pop(),
           trailing: const IronBookTag(label: 'Center Plans'),
         ),
@@ -110,7 +109,7 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
               SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  'Purchase, payment, and active membership QR are unavailable until their real backend features are implemented.',
+                  'Active membership QR will be available after the real QR access feature is implemented.',
                   style: TextStyle(
                     color: IronBookMobileColors.slate500,
                     fontSize: 12,
@@ -263,7 +262,8 @@ class _PlanCard extends StatelessWidget {
     );
   }
 
-  static String _formatPrice(double price) => 'EUR ${price.toStringAsFixed(2)} / month';
+  static String _formatPrice(double price) =>
+      'EUR ${price.toStringAsFixed(2)} / month';
 
   static bool _hasText(String? value) =>
       value != null && value.trim().isNotEmpty;

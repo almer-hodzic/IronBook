@@ -36,6 +36,8 @@ Final Member functionality includes authentication, home, center selection/detai
 
 Payments do not use a real external gateway. The system records selected method, payment status, and billing/payment records.
 
+Membership plans are monthly. `MembershipPlan.MonthlyPrice` is the price for one monthly membership period. On successful checkout, `StartDate` is the current UTC date and `EndDate` is `StartDate.AddMonths(1)`.
+
 An active membership has a real generated QR code. Backend validation checks membership validity for the relevant center and creates a CheckIn record.
 
 ## Group Trainings

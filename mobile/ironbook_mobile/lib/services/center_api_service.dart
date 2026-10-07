@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../app_config.dart';
 import '../models/center.dart';
+import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 
 class CenterApiException implements Exception {
@@ -30,7 +31,9 @@ class CenterApiService {
 
     final decoded = _decodeJson(response.body);
     if (decoded is! List) {
-      throw const CenterApiException('Centers response was not in the expected format.');
+      throw const CenterApiException(
+        'Centers response was not in the expected format.',
+      );
     }
 
     try {
@@ -110,6 +113,38 @@ class CenterApiService {
     }
   }
 
+  Future<MembershipCheckoutResult> checkoutMembership({
+    required int centerId,
+    required int membershipPlanId,
+    required MembershipCheckoutPaymentMethod paymentMethod,
+  }) async {
+    final response = await _post('/api/memberships/checkout', {
+      'centerId': centerId,
+      'membershipPlanId': membershipPlanId,
+      'paymentMethod': paymentMethod.apiValue,
+    });
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        return MembershipCheckoutResult.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException catch (error) {
+        throw CenterApiException(error.message);
+      }
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 409) {
+      throw CenterApiException(
+        _readProblemMessage(response.body, 'Membership checkout was rejected.'),
+      );
+    }
+
+    throw const CenterApiException(
+      'Membership checkout could not be completed.',
+    );
+  }
+
   Future<http.Response> _get(String path) async {
     final baseUrl = AppConfig.apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -123,7 +158,36 @@ class CenterApiService {
     } on FormatException {
       throw const CenterApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {
-      throw const CenterApiException('The IronBook API did not respond in time.');
+      throw const CenterApiException(
+        'The IronBook API did not respond in time.',
+      );
+    } on http.ClientException {
+      throw const CenterApiException('Unable to connect to the IronBook API.');
+    }
+  }
+
+  Future<http.Response> _post(String path, Map<String, Object?> body) async {
+    final baseUrl = AppConfig.apiBaseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw const CenterApiException('API_BASE_URL is not configured.');
+    }
+
+    final uri = Uri.parse(baseUrl).resolve(path);
+
+    try {
+      return await _client
+          .post(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on FormatException {
+      throw const CenterApiException('API_BASE_URL is not a valid URL.');
+    } on TimeoutException {
+      throw const CenterApiException(
+        'The IronBook API did not respond in time.',
+      );
     } on http.ClientException {
       throw const CenterApiException('Unable to connect to the IronBook API.');
     }
@@ -143,5 +207,40 @@ class CenterApiService {
     }
 
     throw const CenterApiException('API returned an unexpected JSON shape.');
+  }
+
+  String _readProblemMessage(String body, String fallback) {
+    try {
+      final decoded = _decodeJson(body);
+      if (decoded is! Map<String, dynamic>) {
+        return fallback;
+      }
+
+      final errors = decoded['errors'];
+      if (errors is Map<String, dynamic>) {
+        for (final value in errors.values) {
+          if (value is List && value.isNotEmpty) {
+            final first = value.first;
+            if (first is String && first.trim().isNotEmpty) {
+              return first.trim();
+            }
+          }
+        }
+      }
+
+      final detail = decoded['detail'];
+      if (detail is String && detail.trim().isNotEmpty) {
+        return detail.trim();
+      }
+
+      final title = decoded['title'];
+      if (title is String && title.trim().isNotEmpty) {
+        return title.trim();
+      }
+    } on CenterApiException {
+      return fallback;
+    }
+
+    return fallback;
   }
 }

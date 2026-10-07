@@ -1,6 +1,8 @@
 using IronBook.Application.Centers;
+using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
 using IronBook.Infrastructure.Centers;
+using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,7 @@ builder.Services.AddScoped<ICenterReadService, CenterReadService>();
 builder.Services.AddScoped<IAdminCenterService, AdminCenterService>();
 builder.Services.AddScoped<IAdminMembershipPlanService, AdminMembershipPlanService>();
 builder.Services.AddScoped<IMemberMembershipPlanService, MemberMembershipPlanService>();
+builder.Services.AddScoped<IMembershipCheckoutService, MembershipCheckoutService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();
