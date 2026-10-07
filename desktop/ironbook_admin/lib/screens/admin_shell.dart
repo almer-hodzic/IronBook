@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_center_api_service.dart';
+import '../services/admin_check_in_api_service.dart';
 import '../services/admin_membership_plan_api_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'centers_management_screen.dart';
+import 'check_in_screen.dart';
 import 'membership_plans_screen.dart';
 
-enum AdminSection { dashboard, centers, memberships }
+enum AdminSection { dashboard, centers, memberships, checkIn }
 
 class AdminShell extends StatefulWidget {
   const AdminShell({
     super.key,
     required this.centerApiService,
+    required this.checkInApiService,
     required this.membershipPlanApiService,
   });
 
   final AdminCenterApiService centerApiService;
+  final AdminCheckInApiService checkInApiService;
   final AdminMembershipPlanApiService membershipPlanApiService;
 
   @override
@@ -32,6 +36,7 @@ class _AdminShellState extends State<AdminShell> {
       AdminSection.dashboard => _AdminDashboardHome(
         onOpenCenters: () => _selectSection(AdminSection.centers),
         onOpenMemberships: () => _selectSection(AdminSection.memberships),
+        onOpenCheckIn: () => _selectSection(AdminSection.checkIn),
       ),
       AdminSection.centers => CentersManagementScreen(
         centerApiService: widget.centerApiService,
@@ -39,6 +44,10 @@ class _AdminShellState extends State<AdminShell> {
       AdminSection.memberships => MembershipPlansScreen(
         membershipPlanApiService: widget.membershipPlanApiService,
         centerApiService: widget.centerApiService,
+      ),
+      AdminSection.checkIn => CheckInScreen(
+        centerApiService: widget.centerApiService,
+        checkInApiService: widget.checkInApiService,
       ),
     };
 
@@ -363,6 +372,12 @@ class _AdminSidebar extends StatelessWidget {
         selected: activeSection == AdminSection.memberships,
         onTap: () => onSectionChanged(AdminSection.memberships),
       ),
+      _SidebarItem(
+        icon: Icons.qr_code_scanner,
+        label: 'Check-In',
+        selected: activeSection == AdminSection.checkIn,
+        onTap: () => onSectionChanged(AdminSection.checkIn),
+      ),
       const _SidebarItem(
         icon: Icons.payments_outlined,
         label: 'Payments',
@@ -450,7 +465,7 @@ class _SidebarScopeCard extends StatelessWidget {
             ),
             SizedBox(height: 6),
             Text(
-              'Centers and Memberships are backed by the real API.',
+              'Centers, Memberships, and Check-In are backed by the real API.',
               style: TextStyle(
                 color: IronBookAdminColors.lime900,
                 fontSize: 12,
@@ -468,10 +483,12 @@ class _AdminDashboardHome extends StatelessWidget {
   const _AdminDashboardHome({
     required this.onOpenCenters,
     required this.onOpenMemberships,
+    required this.onOpenCheckIn,
   });
 
   final VoidCallback onOpenCenters;
   final VoidCallback onOpenMemberships;
+  final VoidCallback onOpenCheckIn;
 
   @override
   Widget build(BuildContext context) {
@@ -504,6 +521,15 @@ class _AdminDashboardHome extends StatelessWidget {
                 buttonLabel: 'Open Memberships',
                 onPressed: onOpenMemberships,
               ),
+              _ModuleCard(
+                icon: Icons.qr_code_scanner,
+                title: 'Check-In',
+                description: 'Validate member QR passes against the real API.',
+                status: 'Available',
+                statusVariant: AdminStatusVariant.success,
+                buttonLabel: 'Open Check-In',
+                onPressed: onOpenCheckIn,
+              ),
             ];
 
             if (!twoColumns) {
@@ -520,9 +546,10 @@ class _AdminDashboardHome extends StatelessWidget {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 14),
-                Expanded(child: cards[1]),
+                for (var index = 0; index < cards.length; index += 1) ...[
+                  Expanded(child: cards[index]),
+                  if (index != cards.length - 1) const SizedBox(width: 14),
+                ],
               ],
             );
           },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/admin_shell.dart';
 import 'services/admin_center_api_service.dart';
+import 'services/admin_check_in_api_service.dart';
 import 'services/admin_membership_plan_api_service.dart';
 import 'theme/ironbook_admin_theme.dart';
 
@@ -19,6 +20,7 @@ class IronBookAdminApp extends StatelessWidget {
       theme: IronBookAdminTheme.theme,
       home: AdminShell(
         centerApiService: AdminCenterApiService(),
+        checkInApiService: AdminCheckInApiService(),
         membershipPlanApiService: AdminMembershipPlanApiService(),
       ),
     );
