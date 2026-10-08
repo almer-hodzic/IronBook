@@ -310,9 +310,14 @@ class IronBookMobileButton extends StatelessWidget {
 }
 
 class IronBookBottomNav extends StatelessWidget {
-  const IronBookBottomNav({super.key, this.activeLabel = 'Home'});
+  const IronBookBottomNav({
+    super.key,
+    this.activeLabel = 'Home',
+    this.onDashboardTap,
+  });
 
   final String activeLabel;
+  final VoidCallback? onDashboardTap;
 
   @override
   Widget build(BuildContext context) {
@@ -341,6 +346,14 @@ class IronBookBottomNav extends StatelessWidget {
         ),
         Expanded(
           child: _BottomNavItem(
+            icon: Icons.assignment_turned_in_outlined,
+            label: 'Dashboard',
+            active: activeLabel == 'Dashboard',
+            onTap: onDashboardTap,
+          ),
+        ),
+        Expanded(
+          child: _BottomNavItem(
             icon: Icons.person_outline,
             label: 'Profile',
             active: activeLabel == 'Profile',
@@ -356,17 +369,22 @@ class _BottomNavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     this.active = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Opacity(
       opacity: active ? 1 : 0.55,
-      child: Container(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         decoration: BoxDecoration(
           color: active ? IronBookMobileColors.slate900 : Colors.transparent,
@@ -391,6 +409,7 @@ class _BottomNavItem extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

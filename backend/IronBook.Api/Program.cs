@@ -31,7 +31,9 @@ builder.Services.AddScoped<IAdminTrainerService, AdminTrainerService>();
 builder.Services.AddScoped<IMemberTrainerService, MemberTrainerService>();
 builder.Services.AddScoped<IMemberTrainingRequestService, MemberTrainingRequestService>();
 builder.Services.AddScoped<IAdminCoachingRequestService, AdminCoachingRequestService>();
+builder.Services.AddScoped<ITrainerDashboardService, TrainerDashboardService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
+builder.Services.AddScoped<IDevelopmentTrainerResolver, DevelopmentTrainerResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {
     var signingKey = builder.Configuration["QrAccess:SigningKey"];

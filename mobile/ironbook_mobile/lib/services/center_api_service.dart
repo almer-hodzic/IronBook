@@ -10,6 +10,7 @@ import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
 import '../models/trainer.dart';
+import '../models/trainer_dashboard_request.dart';
 import '../models/training_request.dart';
 
 class CenterApiException implements Exception {
@@ -334,6 +335,31 @@ class CenterApiService {
     }
 
     throw const CenterApiException('Training request could not be submitted.');
+  }
+
+  Future<List<TrainerDashboardRequest>> getTrainerDashboardRequests() async {
+    final response = await _get('/api/trainer/dashboard/coaching-requests');
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Trainer dashboard requests could not be loaded.',
+      );
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException(
+        'Trainer dashboard response was not in the expected format.',
+      );
+    }
+
+    try {
+      return decoded
+          .map((item) => TrainerDashboardRequest.fromJson(_readObject(item)))
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
   }
 
   Future<MembershipCheckoutResult> checkoutMembership({

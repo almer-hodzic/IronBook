@@ -5,6 +5,7 @@ import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
+import 'trainer_dashboard_screen.dart';
 
 class CenterListScreen extends StatefulWidget {
   const CenterListScreen({super.key, required this.centerApiService});
@@ -55,10 +56,20 @@ class _CenterListScreenState extends State<CenterListScreen> {
     );
   }
 
+  void _openTrainerDashboard() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => TrainerDashboardScreen(
+          centerApiService: widget.centerApiService,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return IronBookMobileShell(
-      bottomNav: const IronBookBottomNav(),
+      bottomNav: IronBookBottomNav(onDashboardTap: _openTrainerDashboard),
       children: [
         IronBookMobileHeader(
           title: 'Choose Your Center',

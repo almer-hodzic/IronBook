@@ -16,6 +16,7 @@ public sealed class DatabaseSeeder
     {
         await SeedCentersAsync(cancellationToken);
         await SeedDevelopmentMemberAsync(cancellationToken);
+        await SeedDevelopmentTrainerAsync(cancellationToken);
     }
 
     private async Task SeedCentersAsync(CancellationToken cancellationToken)
@@ -81,6 +82,35 @@ public sealed class DatabaseSeeder
             existingMember.FirstName = "Development";
             existingMember.LastName = "Member";
             existingMember.IsActive = true;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedDevelopmentTrainerAsync(CancellationToken cancellationToken)
+    {
+        const string email = "trainer@ironbook.local";
+
+        var existingTrainer = await _dbContext.TrainerProfiles
+            .FirstOrDefaultAsync(trainer => trainer.Email == email, cancellationToken);
+
+        if (existingTrainer is null)
+        {
+            _dbContext.TrainerProfiles.Add(new TrainerProfile
+            {
+                FirstName = "Development",
+                LastName = "Trainer",
+                Email = email,
+                PhoneNumber = null,
+                Biography = null,
+                IsActive = true
+            });
+        }
+        else
+        {
+            existingTrainer.FirstName = "Development";
+            existingTrainer.LastName = "Trainer";
+            existingTrainer.IsActive = true;
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
