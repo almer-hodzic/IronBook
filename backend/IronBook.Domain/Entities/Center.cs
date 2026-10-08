@@ -27,4 +27,6 @@ public class Center
     public ICollection<CheckIn> CheckIns { get; set; } = [];
 
     public ICollection<GroupTraining> GroupTrainings { get; set; } = [];
+
+    public ICollection<TrainingRequest> TrainingRequests { get; set; } = [];
 }

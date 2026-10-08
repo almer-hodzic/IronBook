@@ -10,6 +10,7 @@ import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
 import '../models/trainer.dart';
+import '../models/training_request.dart';
 
 class CenterApiException implements Exception {
   const CenterApiException(this.message);
@@ -258,6 +259,83 @@ class CenterApiService {
     }
   }
 
+  Future<List<TrainingAvailabilityDay>> getTrainerAvailability({
+    required int centerId,
+    required int trainerId,
+    DateTime? startDate,
+  }) async {
+    final query = startDate == null
+        ? ''
+        : '?startDate=${_formatDateOnly(startDate)}';
+    final response = await _get(
+      '/api/centers/$centerId/trainers/$trainerId/availability$query',
+    );
+
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'Trainer availability is not available for this center.',
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Trainer availability could not be loaded.',
+      );
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException(
+        'Trainer availability response was not in the expected format.',
+      );
+    }
+
+    try {
+      return decoded
+          .map((item) => TrainingAvailabilityDay.fromJson(_readObject(item)))
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<TrainingRequestResult> createTrainingRequest({
+    required int centerId,
+    required int trainerId,
+    required DateTime requestedStartAt,
+    String? fitnessGoal,
+    String? note,
+  }) async {
+    final response = await _post(
+      '/api/centers/$centerId/trainers/$trainerId/training-requests',
+      {
+        'requestedStartAt': requestedStartAt.toUtc().toIso8601String(),
+        'fitnessGoal': fitnessGoal,
+        'note': note,
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        return TrainingRequestResult.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException catch (error) {
+        throw CenterApiException(error.message);
+      }
+    }
+
+    if (response.statusCode == 400 ||
+        response.statusCode == 404 ||
+        response.statusCode == 409) {
+      throw CenterApiException(
+        _readProblemMessage(response.body, 'Training request was rejected.'),
+      );
+    }
+
+    throw const CenterApiException('Training request could not be submitted.');
+  }
+
   Future<MembershipCheckoutResult> checkoutMembership({
     required int centerId,
     required int membershipPlanId,
@@ -437,5 +515,11 @@ class CenterApiService {
     }
 
     return fallback;
+  }
+
+  String _formatDateOnly(DateTime value) {
+    String two(int number) => number.toString().padLeft(2, '0');
+    final utc = value.toUtc();
+    return '${utc.year}-${two(utc.month)}-${two(utc.day)}';
   }
 }

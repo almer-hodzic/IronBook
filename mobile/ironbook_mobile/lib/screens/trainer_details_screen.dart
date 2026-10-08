@@ -4,6 +4,7 @@ import '../models/trainer.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import 'training_request_screen.dart';
 
 class TrainerDetailsScreen extends StatefulWidget {
   const TrainerDetailsScreen({
@@ -111,7 +112,13 @@ class _TrainerDetailsScreenState extends State<TrainerDetailsScreen> {
                   title: 'Contact',
                   body: _contactBody(trainer),
                 ),
-                const _UnavailableActionCard(),
+                _TrainingRequestActionCard(
+                  trainer: trainer,
+                  centerId: widget.centerId,
+                  centerName: widget.centerName,
+                  centerApiService: widget.centerApiService,
+                  onRequestSubmitted: _retry,
+                ),
               ],
             );
           },
@@ -286,27 +293,85 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _UnavailableActionCard extends StatelessWidget {
-  const _UnavailableActionCard();
+class _TrainingRequestActionCard extends StatelessWidget {
+  const _TrainingRequestActionCard({
+    required this.trainer,
+    required this.centerId,
+    required this.centerName,
+    required this.centerApiService,
+    required this.onRequestSubmitted,
+  });
+
+  final Trainer trainer;
+  final int centerId;
+  final String centerName;
+  final CenterApiService centerApiService;
+  final VoidCallback onRequestSubmitted;
 
   @override
   Widget build(BuildContext context) {
-    return const IronBookMobileSection(
+    return IronBookMobileSection(
       muted: true,
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline, color: IronBookMobileColors.slate500),
-          SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              'Training requests will be added in a later approved slice.',
-              style: TextStyle(
-                color: IronBookMobileColors.slate500,
-                fontSize: 12,
-                height: 1.45,
-              ),
+          const Text(
+            'Training Request',
+            style: TextStyle(
+              color: IronBookMobileColors.slate800,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pick an exact free time slot and submit a request for this trainer.',
+            style: TextStyle(
+              color: IronBookMobileColors.slate500,
+              fontSize: 12,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          IronBookMobileButton.primary(
+            onPressed: () async {
+              final submitted = await Navigator.of(context).push<bool>(
+                MaterialPageRoute<bool>(
+                  builder: (context) => TrainingRequestScreen(
+                    centerId: centerId,
+                    centerName: centerName,
+                    trainer: trainer,
+                    centerApiService: centerApiService,
+                  ),
+                ),
+              );
+
+              if (submitted == true) {
+                onRequestSubmitted();
+              }
+            },
+            label: 'Start Training Request',
+            icon: Icons.event_available_outlined,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: const [
+              Icon(
+                Icons.check_circle_outline,
+                color: IronBookMobileColors.slate500,
+                size: 15,
+              ),
+              SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Pending requests reserve their selected slot.',
+                  style: TextStyle(
+                    color: IronBookMobileColors.slate500,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
