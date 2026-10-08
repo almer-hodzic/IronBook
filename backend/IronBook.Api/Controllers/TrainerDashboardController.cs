@@ -21,4 +21,18 @@ public sealed class TrainerDashboardController : ControllerBase
         var requests = await _dashboardService.GetCoachingRequestsAsync(cancellationToken);
         return Ok(requests);
     }
+
+    [HttpGet("dashboard/coaching-requests/{requestId:int}")]
+    public async Task<ActionResult<TrainerDashboardRequestDetailDto>> GetCoachingRequest(
+        int requestId,
+        CancellationToken cancellationToken)
+    {
+        var request = await _dashboardService.GetCoachingRequestAsync(
+            requestId,
+            cancellationToken);
+
+        return request is null
+            ? NotFound()
+            : Ok(request);
+    }
 }

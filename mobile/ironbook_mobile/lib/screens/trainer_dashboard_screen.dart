@@ -4,6 +4,7 @@ import '../models/trainer_dashboard_request.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import 'trainer_client_details_screen.dart';
 
 class TrainerDashboardScreen extends StatefulWidget {
   const TrainerDashboardScreen({
@@ -133,28 +134,47 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = _DateFormatter();
     final timeFormat = _TimeFormatter();
+    final service = context.findAncestorStateOfType<_TrainerDashboardScreenState>()
+        ?.widget
+        .centerApiService;
 
-    return IronBookMobileSection(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: IronBookMobileColors.amber100,
-                  borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: () {
+        if (service == null) {
+          return;
+        }
+
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => TrainerClientDetailsScreen(
+              centerApiService: service,
+              requestId: request.id,
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: IronBookMobileSection(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: IronBookMobileColors.amber100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today_outlined,
+                    color: IronBookMobileColors.amber700,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.calendar_today_outlined,
-                  color: IronBookMobileColors.amber700,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -172,21 +192,22 @@ class _RequestCard extends StatelessWidget {
               IronBookTag(label: request.status, variant: IronBookTagVariant.success),
             ],
           ),
-          const SizedBox(height: 14),
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-          _InfoRow(
-            icon: Icons.access_time,
-            label: dateFormat.format(request.requestedStartAt),
-            value: timeFormat.format(request.requestedStartAt),
-          ),
-          const SizedBox(height: 8),
-          _InfoRow(
-            icon: Icons.timer_outlined,
-            label: '${request.durationMinutes} minutes',
-            value: 'Session duration',
-          ),
-        ],
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            _InfoRow(
+              icon: Icons.access_time,
+              label: dateFormat.format(request.requestedStartAt),
+              value: timeFormat.format(request.requestedStartAt),
+            ),
+            const SizedBox(height: 8),
+            _InfoRow(
+              icon: Icons.timer_outlined,
+              label: '${request.durationMinutes} minutes',
+              value: 'Session duration',
+            ),
+          ],
+        ),
       ),
     );
   }

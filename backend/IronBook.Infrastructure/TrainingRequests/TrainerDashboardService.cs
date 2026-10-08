@@ -46,4 +46,35 @@ public sealed class TrainerDashboardService : ITrainerDashboardService
                 request.CreatedAt))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<TrainerDashboardRequestDetailDto?> GetCoachingRequestAsync(
+        int requestId,
+        CancellationToken cancellationToken = default)
+    {
+        var trainer = await _trainerResolver.ResolveAsync(cancellationToken: cancellationToken);
+        if (trainer is null)
+        {
+            return null;
+        }
+
+        return await _dbContext.TrainingRequests
+            .AsNoTracking()
+            .Include(request => request.Center)
+            .Include(request => request.MemberProfile)
+            .Where(request =>
+                request.Id == requestId &&
+                request.TrainerProfileId == trainer.Id &&
+                request.Status == TrainingRequestStatus.Approved)
+            .Select(request => new TrainerDashboardRequestDetailDto(
+                request.Id,
+                request.MemberProfile.FirstName + " " + request.MemberProfile.LastName,
+                request.Center.Name,
+                request.RequestedStartAt,
+                request.DurationMinutes,
+                request.FitnessGoal,
+                request.Note,
+                request.Status.ToString(),
+                request.CreatedAt))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }

@@ -10,6 +10,7 @@ import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
 import '../models/trainer.dart';
+import '../models/trainer_client_details.dart';
 import '../models/trainer_dashboard_request.dart';
 import '../models/training_request.dart';
 
@@ -357,6 +358,28 @@ class CenterApiService {
       return decoded
           .map((item) => TrainerDashboardRequest.fromJson(_readObject(item)))
           .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<TrainerClientDetails> getTrainerClientDetails(int requestId) async {
+    final response = await _get(
+      '/api/trainer/dashboard/coaching-requests/$requestId',
+    );
+
+    if (response.statusCode == 404) {
+      throw const CenterApiException('Client details could not be found.');
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Client details could not be loaded.');
+    }
+
+    try {
+      return TrainerClientDetails.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
     } on FormatException catch (error) {
       throw CenterApiException(error.message);
     }
