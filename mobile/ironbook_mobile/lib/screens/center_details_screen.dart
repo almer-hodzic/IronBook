@@ -7,6 +7,7 @@ import '../widgets/ironbook_mobile_components.dart';
 import 'group_trainings_screen.dart';
 import 'membership_plans_screen.dart';
 import 'my_membership_screen.dart';
+import 'trainers_screen.dart';
 
 class CenterDetailsScreen extends StatefulWidget {
   const CenterDetailsScreen({
@@ -542,6 +543,22 @@ class _MembershipAccessSection extends StatelessWidget {
             },
             label: 'View Group Trainings',
             icon: Icons.fitness_center,
+          ),
+          const SizedBox(height: 8),
+          IronBookMobileButton.secondary(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => TrainersScreen(
+                    centerId: center.id,
+                    centerName: center.name,
+                    centerApiService: centerApiService,
+                  ),
+                ),
+              );
+            },
+            label: 'View Trainers',
+            icon: Icons.groups_outlined,
           ),
           const SizedBox(height: 8),
           IronBookMobileButton.secondary(

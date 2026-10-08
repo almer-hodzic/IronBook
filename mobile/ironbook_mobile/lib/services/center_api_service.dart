@@ -9,6 +9,7 @@ import '../models/group_training.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
+import '../models/trainer.dart';
 
 class CenterApiException implements Exception {
   const CenterApiException(this.message);
@@ -205,6 +206,56 @@ class CenterApiService {
     throw const CenterApiException(
       'Group training enrollment could not be completed.',
     );
+  }
+
+  Future<List<Trainer>> getTrainersForCenter(
+    int centerId, {
+    String? search,
+  }) async {
+    final query = search?.trim();
+    final path = query == null || query.isEmpty
+        ? '/api/centers/$centerId/trainers'
+        : '/api/centers/$centerId/trainers?search=${Uri.encodeQueryComponent(query)}';
+    final response = await _get(path);
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Trainers could not be loaded.');
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException(
+        'Trainers response was not in the expected format.',
+      );
+    }
+
+    try {
+      return decoded
+          .map((item) => Trainer.fromJson(_readObject(item)))
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<Trainer> getTrainerForCenter(int centerId, int trainerId) async {
+    final response = await _get('/api/centers/$centerId/trainers/$trainerId');
+
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'Trainer is not available for this center.',
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Trainer details could not be loaded.');
+    }
+
+    try {
+      return Trainer.fromJson(_readObject(_decodeJson(response.body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
   }
 
   Future<MembershipCheckoutResult> checkoutMembership({

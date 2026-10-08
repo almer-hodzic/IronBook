@@ -26,6 +26,7 @@ builder.Services.AddScoped<IMemberMembershipPlanService, MemberMembershipPlanSer
 builder.Services.AddScoped<IAdminGroupTrainingService, AdminGroupTrainingService>();
 builder.Services.AddScoped<IMemberGroupTrainingService, MemberGroupTrainingService>();
 builder.Services.AddScoped<IAdminTrainerService, AdminTrainerService>();
+builder.Services.AddScoped<IMemberTrainerService, MemberTrainerService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {
