@@ -3,12 +3,14 @@ using IronBook.Application.CheckIns;
 using IronBook.Application.GroupTrainings;
 using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
+using IronBook.Application.Trainers;
 using IronBook.Infrastructure.CheckIns;
 using IronBook.Infrastructure.Centers;
 using IronBook.Infrastructure.GroupTrainings;
 using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
 using IronBook.Infrastructure.Persistence;
+using IronBook.Infrastructure.Trainers;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,7 @@ builder.Services.AddScoped<IAdminMembershipPlanService, AdminMembershipPlanServi
 builder.Services.AddScoped<IMemberMembershipPlanService, MemberMembershipPlanService>();
 builder.Services.AddScoped<IAdminGroupTrainingService, AdminGroupTrainingService>();
 builder.Services.AddScoped<IMemberGroupTrainingService, MemberGroupTrainingService>();
+builder.Services.AddScoped<IAdminTrainerService, AdminTrainerService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {

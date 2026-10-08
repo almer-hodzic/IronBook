@@ -4,13 +4,15 @@ import '../services/admin_center_api_service.dart';
 import '../services/admin_check_in_api_service.dart';
 import '../services/admin_group_training_api_service.dart';
 import '../services/admin_membership_plan_api_service.dart';
+import '../services/admin_trainer_api_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'centers_management_screen.dart';
 import 'check_in_screen.dart';
 import 'membership_plans_screen.dart';
+import 'trainers_management_screen.dart';
 
-enum AdminSection { dashboard, centers, memberships, checkIn }
+enum AdminSection { dashboard, centers, trainers, memberships, checkIn }
 
 class AdminShell extends StatefulWidget {
   const AdminShell({
@@ -19,12 +21,14 @@ class AdminShell extends StatefulWidget {
     required this.checkInApiService,
     required this.groupTrainingApiService,
     required this.membershipPlanApiService,
+    required this.trainerApiService,
   });
 
   final AdminCenterApiService centerApiService;
   final AdminCheckInApiService checkInApiService;
   final AdminGroupTrainingApiService groupTrainingApiService;
   final AdminMembershipPlanApiService membershipPlanApiService;
+  final AdminTrainerApiService trainerApiService;
 
   @override
   State<AdminShell> createState() => _AdminShellState();
@@ -38,10 +42,15 @@ class _AdminShellState extends State<AdminShell> {
     final content = switch (_activeSection) {
       AdminSection.dashboard => _AdminDashboardHome(
         onOpenCenters: () => _selectSection(AdminSection.centers),
+        onOpenTrainers: () => _selectSection(AdminSection.trainers),
         onOpenMemberships: () => _selectSection(AdminSection.memberships),
         onOpenCheckIn: () => _selectSection(AdminSection.checkIn),
       ),
       AdminSection.centers => CentersManagementScreen(
+        centerApiService: widget.centerApiService,
+      ),
+      AdminSection.trainers => TrainersManagementScreen(
+        trainerApiService: widget.trainerApiService,
         centerApiService: widget.centerApiService,
       ),
       AdminSection.memberships => MembershipPlansScreen(
@@ -365,10 +374,11 @@ class _AdminSidebar extends StatelessWidget {
         label: 'Coaching Requests',
         enabled: false,
       ),
-      const _SidebarItem(
+      _SidebarItem(
         icon: Icons.groups_outlined,
         label: 'Trainers',
-        enabled: false,
+        selected: activeSection == AdminSection.trainers,
+        onTap: () => onSectionChanged(AdminSection.trainers),
       ),
       _SidebarItem(
         icon: Icons.event_available_outlined,
@@ -469,7 +479,7 @@ class _SidebarScopeCard extends StatelessWidget {
             ),
             SizedBox(height: 6),
             Text(
-              'Centers, Memberships, Group Trainings, and Check-In are backed by the real API.',
+              'Centers, Trainers, Memberships, Group Trainings, and Check-In are backed by the real API.',
               style: TextStyle(
                 color: IronBookAdminColors.lime900,
                 fontSize: 12,
@@ -486,11 +496,13 @@ class _SidebarScopeCard extends StatelessWidget {
 class _AdminDashboardHome extends StatelessWidget {
   const _AdminDashboardHome({
     required this.onOpenCenters,
+    required this.onOpenTrainers,
     required this.onOpenMemberships,
     required this.onOpenCheckIn,
   });
 
   final VoidCallback onOpenCenters;
+  final VoidCallback onOpenTrainers;
   final VoidCallback onOpenMemberships;
   final VoidCallback onOpenCheckIn;
 
@@ -514,6 +526,16 @@ class _AdminDashboardHome extends StatelessWidget {
                 statusVariant: AdminStatusVariant.success,
                 buttonLabel: 'Open Centers',
                 onPressed: onOpenCenters,
+              ),
+              _ModuleCard(
+                icon: Icons.groups_outlined,
+                title: 'Trainers Management',
+                description:
+                    'Manage real trainer profiles and center assignments.',
+                status: 'Available',
+                statusVariant: AdminStatusVariant.success,
+                buttonLabel: 'Open Trainers',
+                onPressed: onOpenTrainers,
               ),
               _ModuleCard(
                 icon: Icons.event_available_outlined,
@@ -568,7 +590,6 @@ class _AdminDashboardHome extends StatelessWidget {
                 icon: Icons.assignment_outlined,
                 label: 'Coaching Requests',
               ),
-              _DeferredChip(icon: Icons.groups_outlined, label: 'Trainers'),
               _DeferredChip(icon: Icons.payments_outlined, label: 'Payments'),
               _DeferredChip(
                 icon: Icons.insert_chart_outlined,
