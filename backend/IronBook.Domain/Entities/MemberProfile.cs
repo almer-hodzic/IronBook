@@ -17,4 +17,6 @@ public class MemberProfile
     public bool IsActive { get; set; } = true;
 
     public ICollection<Membership> Memberships { get; set; } = [];
+
+    public ICollection<GroupTrainingEnrollment> GroupTrainingEnrollments { get; set; } = [];
 }

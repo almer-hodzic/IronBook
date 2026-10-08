@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../app_config.dart';
 import '../models/center.dart';
+import '../models/group_training.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
@@ -112,6 +113,98 @@ class CenterApiService {
     } on FormatException catch (error) {
       throw CenterApiException(error.message);
     }
+  }
+
+  Future<List<GroupTraining>> getGroupTrainingsForCenter(
+    int centerId, {
+    String? search,
+  }) async {
+    final query = search?.trim();
+    final path = query == null || query.isEmpty
+        ? '/api/centers/$centerId/group-trainings'
+        : '/api/centers/$centerId/group-trainings?search=${Uri.encodeQueryComponent(query)}';
+    final response = await _get(path);
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Group trainings could not be loaded.');
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException(
+        'Group trainings response was not in the expected format.',
+      );
+    }
+
+    try {
+      return decoded
+          .map((item) => GroupTraining.fromJson(_readObject(item)))
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<GroupTraining> getGroupTrainingForCenter(
+    int centerId,
+    int groupTrainingId,
+  ) async {
+    final response = await _get(
+      '/api/centers/$centerId/group-trainings/$groupTrainingId',
+    );
+
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'Group training is not available for this center.',
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Group training details could not be loaded.',
+      );
+    }
+
+    try {
+      return GroupTraining.fromJson(_readObject(_decodeJson(response.body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<GroupTrainingEnrollment> enrollGroupTraining({
+    required int centerId,
+    required int groupTrainingId,
+  }) async {
+    final response = await _post(
+      '/api/centers/$centerId/group-trainings/$groupTrainingId/enroll',
+      {},
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        return GroupTrainingEnrollment.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException catch (error) {
+        throw CenterApiException(error.message);
+      }
+    }
+
+    if (response.statusCode == 400 ||
+        response.statusCode == 404 ||
+        response.statusCode == 409) {
+      throw CenterApiException(
+        _readProblemMessage(
+          response.body,
+          'Group training enrollment was rejected.',
+        ),
+      );
+    }
+
+    throw const CenterApiException(
+      'Group training enrollment could not be completed.',
+    );
   }
 
   Future<MembershipCheckoutResult> checkoutMembership({

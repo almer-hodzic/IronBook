@@ -1,9 +1,11 @@
 using IronBook.Application.Centers;
 using IronBook.Application.CheckIns;
+using IronBook.Application.GroupTrainings;
 using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
 using IronBook.Infrastructure.CheckIns;
 using IronBook.Infrastructure.Centers;
+using IronBook.Infrastructure.GroupTrainings;
 using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
 using IronBook.Infrastructure.Persistence;
@@ -19,6 +21,8 @@ builder.Services.AddScoped<ICenterReadService, CenterReadService>();
 builder.Services.AddScoped<IAdminCenterService, AdminCenterService>();
 builder.Services.AddScoped<IAdminMembershipPlanService, AdminMembershipPlanService>();
 builder.Services.AddScoped<IMemberMembershipPlanService, MemberMembershipPlanService>();
+builder.Services.AddScoped<IAdminGroupTrainingService, AdminGroupTrainingService>();
+builder.Services.AddScoped<IMemberGroupTrainingService, MemberGroupTrainingService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {

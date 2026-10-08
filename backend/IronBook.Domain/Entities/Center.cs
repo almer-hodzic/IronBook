@@ -25,4 +25,6 @@ public class Center
     public ICollection<Membership> Memberships { get; set; } = [];
 
     public ICollection<CheckIn> CheckIns { get; set; } = [];
+
+    public ICollection<GroupTraining> GroupTrainings { get; set; } = [];
 }

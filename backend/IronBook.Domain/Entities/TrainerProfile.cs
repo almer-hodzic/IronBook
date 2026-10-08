@@ -19,4 +19,6 @@ public class TrainerProfile
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TrainerCenterAssignment> TrainerCenterAssignments { get; set; } = [];
+
+    public ICollection<GroupTraining> GroupTrainings { get; set; } = [];
 }

@@ -28,6 +28,10 @@ public class IronBookDbContext : DbContext
 
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();
 
+    public DbSet<GroupTraining> GroupTrainings => Set<GroupTraining>();
+
+    public DbSet<GroupTrainingEnrollment> GroupTrainingEnrollments => Set<GroupTrainingEnrollment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

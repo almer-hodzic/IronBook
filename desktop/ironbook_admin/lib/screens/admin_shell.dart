@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/admin_center_api_service.dart';
 import '../services/admin_check_in_api_service.dart';
+import '../services/admin_group_training_api_service.dart';
 import '../services/admin_membership_plan_api_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
@@ -16,11 +17,13 @@ class AdminShell extends StatefulWidget {
     super.key,
     required this.centerApiService,
     required this.checkInApiService,
+    required this.groupTrainingApiService,
     required this.membershipPlanApiService,
   });
 
   final AdminCenterApiService centerApiService;
   final AdminCheckInApiService checkInApiService;
+  final AdminGroupTrainingApiService groupTrainingApiService;
   final AdminMembershipPlanApiService membershipPlanApiService;
 
   @override
@@ -43,6 +46,7 @@ class _AdminShellState extends State<AdminShell> {
       ),
       AdminSection.memberships => MembershipPlansScreen(
         membershipPlanApiService: widget.membershipPlanApiService,
+        groupTrainingApiService: widget.groupTrainingApiService,
         centerApiService: widget.centerApiService,
       ),
       AdminSection.checkIn => CheckInScreen(
@@ -465,7 +469,7 @@ class _SidebarScopeCard extends StatelessWidget {
             ),
             SizedBox(height: 6),
             Text(
-              'Centers, Memberships, and Check-In are backed by the real API.',
+              'Centers, Memberships, Group Trainings, and Check-In are backed by the real API.',
               style: TextStyle(
                 color: IronBookAdminColors.lime900,
                 fontSize: 12,
