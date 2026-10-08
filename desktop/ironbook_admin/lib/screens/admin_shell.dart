@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/admin_center_api_service.dart';
 import '../services/admin_check_in_api_service.dart';
+import '../services/admin_coaching_request_api_service.dart';
 import '../services/admin_group_training_api_service.dart';
 import '../services/admin_membership_plan_api_service.dart';
 import '../services/admin_trainer_api_service.dart';
@@ -9,16 +10,25 @@ import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'centers_management_screen.dart';
 import 'check_in_screen.dart';
+import 'coaching_requests_screen.dart';
 import 'membership_plans_screen.dart';
 import 'trainers_management_screen.dart';
 
-enum AdminSection { dashboard, centers, trainers, memberships, checkIn }
+enum AdminSection {
+  dashboard,
+  centers,
+  coachingRequests,
+  trainers,
+  memberships,
+  checkIn,
+}
 
 class AdminShell extends StatefulWidget {
   const AdminShell({
     super.key,
     required this.centerApiService,
     required this.checkInApiService,
+    required this.coachingRequestApiService,
     required this.groupTrainingApiService,
     required this.membershipPlanApiService,
     required this.trainerApiService,
@@ -26,6 +36,7 @@ class AdminShell extends StatefulWidget {
 
   final AdminCenterApiService centerApiService;
   final AdminCheckInApiService checkInApiService;
+  final AdminCoachingRequestApiService coachingRequestApiService;
   final AdminGroupTrainingApiService groupTrainingApiService;
   final AdminMembershipPlanApiService membershipPlanApiService;
   final AdminTrainerApiService trainerApiService;
@@ -42,12 +53,17 @@ class _AdminShellState extends State<AdminShell> {
     final content = switch (_activeSection) {
       AdminSection.dashboard => _AdminDashboardHome(
         onOpenCenters: () => _selectSection(AdminSection.centers),
+        onOpenCoachingRequests: () => _selectSection(AdminSection.coachingRequests),
         onOpenTrainers: () => _selectSection(AdminSection.trainers),
         onOpenMemberships: () => _selectSection(AdminSection.memberships),
         onOpenCheckIn: () => _selectSection(AdminSection.checkIn),
       ),
       AdminSection.centers => CentersManagementScreen(
         centerApiService: widget.centerApiService,
+      ),
+      AdminSection.coachingRequests => CoachingRequestsScreen(
+        coachingRequestApiService: widget.coachingRequestApiService,
+        trainerApiService: widget.trainerApiService,
       ),
       AdminSection.trainers => TrainersManagementScreen(
         trainerApiService: widget.trainerApiService,
@@ -369,10 +385,11 @@ class _AdminSidebar extends StatelessWidget {
         selected: activeSection == AdminSection.centers,
         onTap: () => onSectionChanged(AdminSection.centers),
       ),
-      const _SidebarItem(
+      _SidebarItem(
         icon: Icons.assignment_outlined,
         label: 'Coaching Requests',
-        enabled: false,
+        selected: activeSection == AdminSection.coachingRequests,
+        onTap: () => onSectionChanged(AdminSection.coachingRequests),
       ),
       _SidebarItem(
         icon: Icons.groups_outlined,
@@ -496,12 +513,14 @@ class _SidebarScopeCard extends StatelessWidget {
 class _AdminDashboardHome extends StatelessWidget {
   const _AdminDashboardHome({
     required this.onOpenCenters,
+    required this.onOpenCoachingRequests,
     required this.onOpenTrainers,
     required this.onOpenMemberships,
     required this.onOpenCheckIn,
   });
 
   final VoidCallback onOpenCenters;
+  final VoidCallback onOpenCoachingRequests;
   final VoidCallback onOpenTrainers;
   final VoidCallback onOpenMemberships;
   final VoidCallback onOpenCheckIn;
@@ -526,6 +545,16 @@ class _AdminDashboardHome extends StatelessWidget {
                 statusVariant: AdminStatusVariant.success,
                 buttonLabel: 'Open Centers',
                 onPressed: onOpenCenters,
+              ),
+              _ModuleCard(
+                icon: Icons.assignment_outlined,
+                title: 'Coaching Requests',
+                description:
+                    'Review and manage real coaching request workflows.',
+                status: 'Available',
+                statusVariant: AdminStatusVariant.success,
+                buttonLabel: 'Open Coaching Requests',
+                onPressed: onOpenCoachingRequests,
               ),
               _ModuleCard(
                 icon: Icons.groups_outlined,
@@ -586,10 +615,6 @@ class _AdminDashboardHome extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: const [
-              _DeferredChip(
-                icon: Icons.assignment_outlined,
-                label: 'Coaching Requests',
-              ),
               _DeferredChip(icon: Icons.payments_outlined, label: 'Payments'),
               _DeferredChip(
                 icon: Icons.insert_chart_outlined,

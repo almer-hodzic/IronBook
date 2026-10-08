@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/admin_shell.dart';
 import 'services/admin_center_api_service.dart';
 import 'services/admin_check_in_api_service.dart';
+import 'services/admin_coaching_request_api_service.dart';
 import 'services/admin_group_training_api_service.dart';
 import 'services/admin_membership_plan_api_service.dart';
 import 'services/admin_trainer_api_service.dart';
@@ -23,6 +24,7 @@ class IronBookAdminApp extends StatelessWidget {
       home: AdminShell(
         centerApiService: AdminCenterApiService(),
         checkInApiService: AdminCheckInApiService(),
+        coachingRequestApiService: AdminCoachingRequestApiService(),
         groupTrainingApiService: AdminGroupTrainingApiService(),
         membershipPlanApiService: AdminMembershipPlanApiService(),
         trainerApiService: AdminTrainerApiService(),

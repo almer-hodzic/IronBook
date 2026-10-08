@@ -30,6 +30,7 @@ builder.Services.AddScoped<IMemberGroupTrainingService, MemberGroupTrainingServi
 builder.Services.AddScoped<IAdminTrainerService, AdminTrainerService>();
 builder.Services.AddScoped<IMemberTrainerService, MemberTrainerService>();
 builder.Services.AddScoped<IMemberTrainingRequestService, MemberTrainingRequestService>();
+builder.Services.AddScoped<IAdminCoachingRequestService, AdminCoachingRequestService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {
