@@ -8,6 +8,7 @@ class TrainerClientDetails {
     required this.fitnessGoal,
     required this.note,
     required this.status,
+    required this.hasTrainingReport,
     required this.createdAt,
   });
 
@@ -19,6 +20,7 @@ class TrainerClientDetails {
   final String? fitnessGoal;
   final String? note;
   final String status;
+  final bool hasTrainingReport;
   final DateTime createdAt;
 
   factory TrainerClientDetails.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class TrainerClientDetails {
       fitnessGoal: _readOptionalString(json, 'fitnessGoal'),
       note: _readOptionalString(json, 'note'),
       status: _readString(json, 'status'),
+      hasTrainingReport: _readBool(json, 'hasTrainingReport'),
       createdAt: DateTime.parse(_readString(json, 'createdAt')),
     );
   }
@@ -65,4 +68,13 @@ String? _readOptionalString(Map<String, dynamic> json, String key) {
   }
 
   throw FormatException('Invalid or missing string field "$key".');
+}
+
+bool _readBool(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is bool) {
+    return value;
+  }
+
+  throw FormatException('Invalid or missing boolean field "$key".');
 }

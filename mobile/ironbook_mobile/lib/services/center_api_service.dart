@@ -12,6 +12,7 @@ import '../models/my_membership.dart';
 import '../models/trainer.dart';
 import '../models/trainer_client_details.dart';
 import '../models/trainer_dashboard_request.dart';
+import '../models/training_report.dart';
 import '../models/training_request.dart';
 
 class CenterApiException implements Exception {
@@ -383,6 +384,40 @@ class CenterApiService {
     } on FormatException catch (error) {
       throw CenterApiException(error.message);
     }
+  }
+
+  Future<TrainingReport> createTrainingReport({
+    required int trainingRequestId,
+    required DateTime trainingDate,
+    String? notes,
+    required List<Map<String, Object?>> exercises,
+  }) async {
+    final response = await _post('/api/trainer/training-reports', {
+      'trainingRequestId': trainingRequestId,
+      'trainingDate': trainingDate.toUtc().toIso8601String(),
+      'notes': notes,
+      'exercises': exercises,
+    });
+
+    if (response.statusCode == 201) {
+      try {
+        return TrainingReport.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException catch (error) {
+        throw CenterApiException(error.message);
+      }
+    }
+
+    if (response.statusCode == 400 ||
+        response.statusCode == 404 ||
+        response.statusCode == 409) {
+      throw CenterApiException(
+        _readProblemMessage(response.body, 'Training report was rejected.'),
+      );
+    }
+
+    throw const CenterApiException('Training report could not be saved.');
   }
 
   Future<MembershipCheckoutResult> checkoutMembership({

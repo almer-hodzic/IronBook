@@ -29,4 +29,6 @@ public class Center
     public ICollection<GroupTraining> GroupTrainings { get; set; } = [];
 
     public ICollection<TrainingRequest> TrainingRequests { get; set; } = [];
+
+    public ICollection<TrainingReport> TrainingReports { get; set; } = [];
 }

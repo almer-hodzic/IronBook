@@ -34,6 +34,10 @@ public class IronBookDbContext : DbContext
 
     public DbSet<TrainingRequest> TrainingRequests => Set<TrainingRequest>();
 
+    public DbSet<TrainingReport> TrainingReports => Set<TrainingReport>();
+
+    public DbSet<TrainingReportExercise> TrainingReportExercises => Set<TrainingReportExercise>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

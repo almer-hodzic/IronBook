@@ -74,6 +74,8 @@ public sealed class TrainerDashboardService : ITrainerDashboardService
                 request.FitnessGoal,
                 request.Note,
                 request.Status.ToString(),
+                _dbContext.TrainingReports
+                    .Any(report => report.TrainingRequestId == request.Id),
                 request.CreatedAt))
             .SingleOrDefaultAsync(cancellationToken);
     }

@@ -21,4 +21,6 @@ public class MemberProfile
     public ICollection<GroupTrainingEnrollment> GroupTrainingEnrollments { get; set; } = [];
 
     public ICollection<TrainingRequest> TrainingRequests { get; set; } = [];
+
+    public ICollection<TrainingReport> TrainingReports { get; set; } = [];
 }

@@ -9,4 +9,5 @@ public sealed record TrainerDashboardRequestDetailDto(
     string? FitnessGoal,
     string? Note,
     string Status,
+    bool HasTrainingReport,
     DateTime CreatedAt);

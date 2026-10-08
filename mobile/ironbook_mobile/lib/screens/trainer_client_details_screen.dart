@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/trainer_client_details.dart';
+import '../screens/add_training_report_screen.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
@@ -71,7 +72,10 @@ class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen>
               );
             }
 
-            return _ClientDetailsSection(details: details);
+            return _ClientDetailsSection(
+              details: details,
+              onTrainingReportAdded: _retry,
+            );
           },
         ),
       ],
@@ -80,9 +84,13 @@ class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen>
 }
 
 class _ClientDetailsSection extends StatelessWidget {
-  const _ClientDetailsSection({required this.details});
+  const _ClientDetailsSection({
+    required this.details,
+    required this.onTrainingReportAdded,
+  });
 
   final TrainerClientDetails details;
+  final VoidCallback onTrainingReportAdded;
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +181,29 @@ class _ClientDetailsSection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 10),
+        if (details.status == 'Approved' && !details.hasTrainingReport)
+          IronBookMobileButton.primary(
+            onPressed: () async {
+              final refreshed = await Navigator.of(context).push<bool>(
+                MaterialPageRoute<bool>(
+                  builder: (context) => AddTrainingReportScreen(
+                    centerApiService: context
+                        .findAncestorStateOfType<_TrainerClientDetailsScreenState>()!
+                        .widget
+                        .centerApiService,
+                    trainingRequestId: details.id,
+                  ),
+                ),
+              );
+
+              if (refreshed == true) {
+                onTrainingReportAdded();
+              }
+            },
+            label: 'Add Training Report',
+            icon: Icons.assignment_add,
+          ),
       ],
     );
   }
