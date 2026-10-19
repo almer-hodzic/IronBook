@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/center.dart';
+import '../models/member_notification.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
 import 'member_progress_log_screen.dart';
+import 'member_notifications_screen.dart';
 import 'trainer_dashboard_screen.dart';
 import 'training_preferences_screen.dart';
 
@@ -20,6 +22,7 @@ class CenterListScreen extends StatefulWidget {
 
 class _CenterListScreenState extends State<CenterListScreen> {
   late Future<List<FitnessCenter>> _centersFuture;
+  late Future<List<MemberNotification>> _notificationsFuture;
   final _searchController = TextEditingController();
   int? _selectedCenterId;
   String _searchQuery = '';
@@ -28,6 +31,7 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void initState() {
     super.initState();
     _centersFuture = widget.centerApiService.getCenters();
+    _notificationsFuture = widget.centerApiService.getMemberNotifications();
   }
 
   @override
@@ -39,6 +43,7 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void _retry() {
     setState(() {
       _centersFuture = widget.centerApiService.getCenters();
+      _notificationsFuture = widget.centerApiService.getMemberNotifications();
     });
   }
 
@@ -67,6 +72,20 @@ class _CenterListScreenState extends State<CenterListScreen> {
     );
   }
 
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => MemberNotificationsScreen(
+          centerApiService: widget.centerApiService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _notificationsFuture = widget.centerApiService.getMemberNotifications();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return IronBookMobileShell(
@@ -78,10 +97,24 @@ class _CenterListScreenState extends State<CenterListScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _IconBadgeButton(
-                icon: Icons.notifications_none,
-                dot: true,
-                onPressed: null,
+              FutureBuilder<List<MemberNotification>>(
+                future: _notificationsFuture,
+                builder: (context, snapshot) {
+                  final unread =
+                      snapshot.connectionState == ConnectionState.done &&
+                          !snapshot.hasError
+                      ? snapshot.data?.where((item) => !item.isRead).length
+                      : null;
+                  return Badge.count(
+                    count: unread ?? 0,
+                    isLabelVisible: unread != null && unread > 0,
+                    child: IconButton(
+                      tooltip: 'Notifications',
+                      icon: const Icon(Icons.notifications_none),
+                      onPressed: _openNotifications,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 8),
               const _AvatarBadge(),
@@ -176,58 +209,6 @@ class _CenterListScreenState extends State<CenterListScreen> {
           );
         })
         .toList(growable: false);
-  }
-}
-
-class _IconBadgeButton extends StatelessWidget {
-  const _IconBadgeButton({
-    required this.icon,
-    this.dot = false,
-    this.onPressed,
-  });
-
-  final IconData icon;
-  final bool dot;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        SizedBox(
-          width: 36,
-          height: 36,
-          child: OutlinedButton(
-            onPressed: onPressed,
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.zero,
-              side: const BorderSide(color: IronBookMobileColors.slate200),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              backgroundColor: Colors.white,
-              foregroundColor: IronBookMobileColors.slate500,
-              disabledForegroundColor: IronBookMobileColors.slate500,
-            ),
-            child: Icon(icon, size: 18),
-          ),
-        ),
-        if (dot)
-          Positioned(
-            right: 8,
-            top: 8,
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: IronBookMobileColors.accent,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-      ],
-    );
   }
 }
 

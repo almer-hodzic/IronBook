@@ -1,4 +1,6 @@
 using IronBook.Application.TrainingRequests;
+using IronBook.Application.Notifications;
+using System.Text.Json;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Persistence;
@@ -116,7 +118,7 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         }
 
         var trainer = await _dbContext.TrainerProfiles
-            .AsNoTracking()
+            .AsTracking()
             .SingleOrDefaultAsync(trainer => trainer.Id == trainerProfileId, cancellationToken);
 
         if (trainer is null || !trainer.IsActive)
@@ -161,8 +163,13 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             }
         }
 
+        if (request.TrainerProfileId == trainerProfileId)
+            return AdminCoachingRequestActionResult.Success(ToDto(request));
+
+        request.TrainerProfile = trainer;
         request.TrainerProfileId = trainerProfileId;
         request.UpdatedAt = DateTime.UtcNow;
+        EnqueueNotification(request, "Reassigned");
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminCoachingRequestActionResult.Success(ToDto(request));
@@ -174,6 +181,8 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         CancellationToken cancellationToken)
     {
         var request = await _dbContext.TrainingRequests
+            .Include(request => request.Center)
+            .Include(request => request.TrainerProfile)
             .SingleOrDefaultAsync(request => request.Id == id, cancellationToken);
 
         if (request is null)
@@ -191,6 +200,7 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
 
         request.Status = targetStatus;
         request.UpdatedAt = DateTime.UtcNow;
+        EnqueueNotification(request, targetStatus.ToString());
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var updatedRequest = await _dbContext.TrainingRequests
@@ -201,6 +211,22 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             .SingleAsync(request => request.Id == id, cancellationToken);
 
         return AdminCoachingRequestActionResult.Success(ToDto(updatedRequest));
+    }
+
+    private void EnqueueNotification(TrainingRequest request, string action)
+    {
+        var occurredAt = request.UpdatedAt!.Value;
+        var message = new CoachingRequestNotificationEvent(
+            Guid.NewGuid(), request.Id, request.MemberProfileId, action,
+            request.TrainerProfile.FirstName + " " + request.TrainerProfile.LastName,
+            request.Center.Name, request.RequestedStartAt, occurredAt);
+        // EF saves the request change and outbox row in one SQL transaction.
+        _dbContext.NotificationOutboxMessages.Add(new NotificationOutboxMessage
+        {
+            Id = message.EventId,
+            Payload = JsonSerializer.Serialize(message),
+            CreatedAt = occurredAt
+        });
     }
 
     private static bool IsValidStatusTransition(

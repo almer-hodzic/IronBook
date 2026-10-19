@@ -8,6 +8,7 @@ import '../models/center.dart';
 import '../models/group_training.dart';
 import '../models/member_progress_log.dart';
 import '../models/member_recommendations.dart';
+import '../models/member_notification.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
@@ -34,6 +35,53 @@ class CenterApiService {
 
   final http.Client _client;
   final String _apiBaseUrl;
+
+  Future<List<MemberNotification>> getMemberNotifications() async {
+    final response = await _get('/api/member/notifications');
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Notifications could not be loaded.');
+    }
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException('Invalid notifications response.');
+    }
+    try {
+      final notifications = decoded
+          .map((item) => MemberNotification.fromJson(_readObject(item)))
+          .toList();
+      notifications.sort(MemberNotification.newestFirst);
+      return notifications;
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<MemberNotification> markNotificationRead(int id) async {
+    final response = await _put('/api/member/notifications/$id/read', {});
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'This notification is no longer available. Refresh the list.',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Notification could not be marked as read. Tap to retry.',
+      );
+    }
+    try {
+      final notification = MemberNotification.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
+      if (notification.id != id || !notification.isRead) {
+        throw const FormatException(
+          'The API did not confirm this notification as read.',
+        );
+      }
+      return notification;
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
 
   Future<MemberRecommendations> getRecommendationsForCenter(
     int centerId,

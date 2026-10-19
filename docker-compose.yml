@@ -28,6 +28,8 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - ironbook
     healthcheck:
@@ -46,6 +48,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=Change_this_dev_password_123!;TrustServerCertificate=True;}
       RabbitMQ__Host: ${RabbitMQ__Host:-rabbitmq}
+      RabbitMQ__QueueName: ${RabbitMQ__QueueName:-ironbook.member-notifications}
       RabbitMQ__Port: ${RabbitMQ__Port:-5672}
       RabbitMQ__Username: ${RabbitMQ__Username:-ironbook}
       RabbitMQ__Password: ${RabbitMQ__Password:-change_this_rabbit_password}
@@ -72,6 +75,7 @@ services:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=Change_this_dev_password_123!;TrustServerCertificate=True;}
       RabbitMQ__Host: ${RabbitMQ__Host:-rabbitmq}
+      RabbitMQ__QueueName: ${RabbitMQ__QueueName:-ironbook.member-notifications}
       RabbitMQ__Port: ${RabbitMQ__Port:-5672}
       RabbitMQ__Username: ${RabbitMQ__Username:-ironbook}
       RabbitMQ__Password: ${RabbitMQ__Password:-change_this_rabbit_password}
@@ -89,3 +93,4 @@ networks:
 
 volumes:
   sqlserver-data:
+  rabbitmq-data:

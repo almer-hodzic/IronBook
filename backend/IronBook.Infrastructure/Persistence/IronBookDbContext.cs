@@ -16,6 +16,10 @@ public class IronBookDbContext : DbContext
 
     public DbSet<TrainingPreference> TrainingPreferences => Set<TrainingPreference>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationOutboxMessage> NotificationOutboxMessages => Set<NotificationOutboxMessage>();
+
     public DbSet<TrainerProfile> TrainerProfiles => Set<TrainerProfile>();
 
     public DbSet<TrainerCenterAssignment> TrainerCenterAssignments => Set<TrainerCenterAssignment>();

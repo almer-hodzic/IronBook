@@ -341,6 +341,74 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.ToTable("MembershipPlanCenters");
                 });
 
+            modelBuilder.Entity("IronBook.Domain.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MemberProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("TrainingRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("TrainingRequestId");
+
+                    b.HasIndex("MemberProfileId", "CreatedAt");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.NotificationOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublishedAt", "CreatedAt");
+
+                    b.ToTable("NotificationOutboxMessages");
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -724,6 +792,25 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.Navigation("Center");
 
                     b.Navigation("MembershipPlan");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.MemberProfile", "MemberProfile")
+                        .WithMany()
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IronBook.Domain.Entities.TrainingRequest", "TrainingRequest")
+                        .WithMany()
+                        .HasForeignKey("TrainingRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MemberProfile");
+
+                    b.Navigation("TrainingRequest");
                 });
 
             modelBuilder.Entity("IronBook.Domain.Entities.Payment", b =>

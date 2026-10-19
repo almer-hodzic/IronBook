@@ -4,6 +4,8 @@ using IronBook.Application.GroupTrainings;
 using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
 using IronBook.Application.Recommendations;
+using IronBook.Application.Notifications;
+using IronBook.Api.Notifications;
 using IronBook.Application.TrainingReports;
 using IronBook.Application.TrainingPreferences;
 using IronBook.Application.TrainingRequests;
@@ -15,6 +17,7 @@ using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
 using IronBook.Infrastructure.Persistence;
 using IronBook.Infrastructure.Recommendations;
+using IronBook.Infrastructure.Notifications;
 using IronBook.Infrastructure.TrainingReports;
 using IronBook.Infrastructure.TrainingPreferences;
 using IronBook.Infrastructure.TrainingRequests;
@@ -42,6 +45,9 @@ builder.Services.AddScoped<ITrainerTrainingReportService, TrainerTrainingReportS
 builder.Services.AddScoped<IMemberProgressLogService, MemberProgressLogService>();
 builder.Services.AddScoped<IMemberTrainingPreferencesService, MemberTrainingPreferencesService>();
 builder.Services.AddScoped<IMemberRecommendationsService, MemberRecommendationsService>();
+builder.Services.AddScoped<IMemberNotificationService, MemberNotificationService>();
+builder.Services.AddSingleton<RabbitMqNotificationPublisher>();
+builder.Services.AddHostedService<NotificationOutboxDispatcher>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddScoped<IDevelopmentTrainerResolver, DevelopmentTrainerResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
