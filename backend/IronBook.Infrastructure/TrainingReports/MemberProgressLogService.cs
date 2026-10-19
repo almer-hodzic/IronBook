@@ -1,0 +1,60 @@
+using IronBook.Application.TrainingReports;
+using IronBook.Infrastructure.Memberships;
+using IronBook.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace IronBook.Infrastructure.TrainingReports;
+
+public sealed class MemberProgressLogService : IMemberProgressLogService
+{
+    private readonly IronBookDbContext _dbContext;
+    private readonly IDevelopmentMemberResolver _memberResolver;
+
+    public MemberProgressLogService(
+        IronBookDbContext dbContext,
+        IDevelopmentMemberResolver memberResolver)
+    {
+        _dbContext = dbContext;
+        _memberResolver = memberResolver;
+    }
+
+    public async Task<IReadOnlyList<MemberProgressLogDto>> GetAsync(
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var member = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken);
+        if (member is null)
+        {
+            return [];
+        }
+
+        var from = fromDate?.Date;
+        var to = toDate?.Date;
+
+        return await _dbContext.TrainingReports
+            .AsNoTracking()
+            .Where(report => report.MemberProfileId == member.Id)
+            .Where(report => !from.HasValue || report.TrainingDate >= from.Value)
+            .Where(report => !to.HasValue || report.TrainingDate.Date <= to.Value)
+            .OrderByDescending(report => report.TrainingDate)
+            .ThenByDescending(report => report.CreatedAt)
+            .ThenByDescending(report => report.Id)
+            .Select(report => new MemberProgressLogDto(
+                report.Id,
+                report.TrainingDate,
+                report.TrainerProfile.FirstName + " " + report.TrainerProfile.LastName,
+                report.Center.Name,
+                report.Notes,
+                report.Exercises
+                    .OrderBy(exercise => exercise.Id)
+                    .Select(exercise => new MemberProgressLogExerciseDto(
+                        exercise.ExerciseName,
+                        exercise.Sets,
+                        exercise.Reps,
+                        exercise.Weight,
+                        exercise.Notes))
+                    .ToList()))
+            .ToListAsync(cancellationToken);
+    }
+}

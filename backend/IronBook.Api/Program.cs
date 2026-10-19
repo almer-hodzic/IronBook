@@ -35,6 +35,7 @@ builder.Services.AddScoped<IMemberTrainingRequestService, MemberTrainingRequestS
 builder.Services.AddScoped<IAdminCoachingRequestService, AdminCoachingRequestService>();
 builder.Services.AddScoped<ITrainerDashboardService, TrainerDashboardService>();
 builder.Services.AddScoped<ITrainerTrainingReportService, TrainerTrainingReportService>();
+builder.Services.AddScoped<IMemberProgressLogService, MemberProgressLogService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddScoped<IDevelopmentTrainerResolver, DevelopmentTrainerResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>

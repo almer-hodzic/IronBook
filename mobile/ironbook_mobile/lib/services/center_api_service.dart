@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../app_config.dart';
 import '../models/center.dart';
 import '../models/group_training.dart';
+import '../models/member_progress_log.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
@@ -28,6 +29,46 @@ class CenterApiService {
   CenterApiService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  Future<List<MemberProgressLog>> getMemberProgressLog({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    // Filters are calendar dates, so preserve the selected day without UTC conversion.
+    String dateOnly(DateTime date) =>
+        '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    final query = <String, String>{
+      if (fromDate != null) 'fromDate': dateOnly(fromDate),
+      if (toDate != null) 'toDate': dateOnly(toDate),
+    };
+    final path = Uri(
+      path: '/api/member/progress-log',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+    final response = await _get(path);
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Progress log could not be loaded.');
+    }
+
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException('Invalid progress log response.');
+    }
+    try {
+      final reports = decoded
+          .map((item) => MemberProgressLog.fromJson(_readObject(item)))
+          .toList();
+      reports.sort((a, b) {
+        final dateOrder = b.trainingDate.compareTo(a.trainingDate);
+        return dateOrder == 0 ? b.id.compareTo(a.id) : dateOrder;
+      });
+      return reports;
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
 
   Future<List<FitnessCenter>> getCenters() async {
     final response = await _get('/api/centers');
@@ -401,9 +442,7 @@ class CenterApiService {
 
     if (response.statusCode == 201) {
       try {
-        return TrainingReport.fromJson(
-          _readObject(_decodeJson(response.body)),
-        );
+        return TrainingReport.fromJson(_readObject(_decodeJson(response.body)));
       } on FormatException catch (error) {
         throw CenterApiException(error.message);
       }

@@ -5,6 +5,7 @@ import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
+import 'member_progress_log_screen.dart';
 import 'trainer_dashboard_screen.dart';
 
 class CenterListScreen extends StatefulWidget {
@@ -59,9 +60,8 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void _openTrainerDashboard() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => TrainerDashboardScreen(
-          centerApiService: widget.centerApiService,
-        ),
+        builder: (context) =>
+            TrainerDashboardScreen(centerApiService: widget.centerApiService),
       ),
     );
   }
@@ -96,6 +96,17 @@ class _CenterListScreenState extends State<CenterListScreen> {
           },
         ),
         const _MemberAccessCard(),
+        IronBookMobileButton.secondary(
+          label: 'Progress Log',
+          icon: Icons.history,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => MemberProgressLogScreen(
+                centerApiService: widget.centerApiService,
+              ),
+            ),
+          ),
+        ),
         FutureBuilder<List<FitnessCenter>>(
           future: _centersFuture,
           builder: (context, snapshot) {
