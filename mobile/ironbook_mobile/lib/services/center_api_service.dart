@@ -7,6 +7,7 @@ import '../app_config.dart';
 import '../models/center.dart';
 import '../models/group_training.dart';
 import '../models/member_progress_log.dart';
+import '../models/member_recommendations.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../models/my_membership.dart';
@@ -33,6 +34,35 @@ class CenterApiService {
 
   final http.Client _client;
   final String _apiBaseUrl;
+
+  Future<MemberRecommendations> getRecommendationsForCenter(
+    int centerId,
+  ) async {
+    final response = await _get(
+      '/api/member/centers/$centerId/recommendations',
+    );
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'Recommendations are unavailable for this center or member.',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw const CenterApiException('Recommendations could not be loaded.');
+    }
+    try {
+      final recommendations = MemberRecommendations.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
+      if (recommendations.centerId != centerId) {
+        throw const FormatException(
+          'Recommendations do not match the selected center.',
+        );
+      }
+      return recommendations;
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
 
   Future<TrainingPreferences?> getTrainingPreferences() async {
     final response = await _get('/api/member/training-preferences');

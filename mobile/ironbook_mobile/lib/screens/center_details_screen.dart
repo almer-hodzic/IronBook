@@ -7,6 +7,7 @@ import '../widgets/ironbook_mobile_components.dart';
 import 'group_trainings_screen.dart';
 import 'membership_plans_screen.dart';
 import 'my_membership_screen.dart';
+import 'recommendations_screen.dart';
 import 'trainers_screen.dart';
 
 class CenterDetailsScreen extends StatefulWidget {
@@ -117,6 +118,19 @@ class _CenterDetailsScreenState extends State<CenterDetailsScreen> {
                   onSelect: (index) => setState(() => _activeSlide = index),
                 ),
                 _CenterSummary(center: center),
+                IronBookMobileButton.secondary(
+                  label: 'Recommendations',
+                  icon: Icons.recommend_outlined,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => RecommendationsScreen(
+                        centerId: center.id,
+                        centerName: center.name,
+                        centerApiService: widget.centerApiService,
+                      ),
+                    ),
+                  ),
+                ),
                 if (center.capacity != null && center.capacity! > 0)
                   _InfoSection(
                     title: 'Capacity',
