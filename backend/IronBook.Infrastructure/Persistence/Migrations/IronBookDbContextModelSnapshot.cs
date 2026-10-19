@@ -452,6 +452,35 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.ToTable("TrainerProfiles");
                 });
 
+            modelBuilder.Entity("IronBook.Domain.Entities.TrainingPreference", b =>
+                {
+                    b.Property<int>("MemberProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PrimaryGoal")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("MemberProfileId");
+
+                    b.ToTable("TrainingPreferences");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.TrainingPreferenceInterest", b =>
+                {
+                    b.Property<int>("MemberProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("MemberProfileId", "Category");
+
+                    b.ToTable("TrainingPreferenceInterests", (string)null);
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.TrainingReport", b =>
                 {
                     b.Property<int>("Id")
@@ -727,6 +756,28 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.Navigation("TrainerProfile");
                 });
 
+            modelBuilder.Entity("IronBook.Domain.Entities.TrainingPreference", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.MemberProfile", "MemberProfile")
+                        .WithOne()
+                        .HasForeignKey("IronBook.Domain.Entities.TrainingPreference", "MemberProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MemberProfile");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.TrainingPreferenceInterest", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.TrainingPreference", "TrainingPreference")
+                        .WithMany("Interests")
+                        .HasForeignKey("MemberProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingPreference");
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.TrainingReport", b =>
                 {
                     b.HasOne("IronBook.Domain.Entities.Center", "Center")
@@ -856,6 +907,11 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.Navigation("TrainingReports");
 
                     b.Navigation("TrainingRequests");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.TrainingPreference", b =>
+                {
+                    b.Navigation("Interests");
                 });
 
             modelBuilder.Entity("IronBook.Domain.Entities.TrainingReport", b =>

@@ -4,6 +4,7 @@ using IronBook.Application.GroupTrainings;
 using IronBook.Application.Memberships;
 using IronBook.Application.MembershipPlans;
 using IronBook.Application.TrainingReports;
+using IronBook.Application.TrainingPreferences;
 using IronBook.Application.TrainingRequests;
 using IronBook.Application.Trainers;
 using IronBook.Infrastructure.CheckIns;
@@ -13,6 +14,7 @@ using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.MembershipPlans;
 using IronBook.Infrastructure.Persistence;
 using IronBook.Infrastructure.TrainingReports;
+using IronBook.Infrastructure.TrainingPreferences;
 using IronBook.Infrastructure.TrainingRequests;
 using IronBook.Infrastructure.Trainers;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +38,7 @@ builder.Services.AddScoped<IAdminCoachingRequestService, AdminCoachingRequestSer
 builder.Services.AddScoped<ITrainerDashboardService, TrainerDashboardService>();
 builder.Services.AddScoped<ITrainerTrainingReportService, TrainerTrainingReportService>();
 builder.Services.AddScoped<IMemberProgressLogService, MemberProgressLogService>();
+builder.Services.AddScoped<IMemberTrainingPreferencesService, MemberTrainingPreferencesService>();
 builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
 builder.Services.AddScoped<IDevelopmentTrainerResolver, DevelopmentTrainerResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>

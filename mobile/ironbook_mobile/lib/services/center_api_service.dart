@@ -15,6 +15,7 @@ import '../models/trainer_client_details.dart';
 import '../models/trainer_dashboard_request.dart';
 import '../models/training_report.dart';
 import '../models/training_request.dart';
+import '../models/training_preferences.dart';
 
 class CenterApiException implements Exception {
   const CenterApiException(this.message);
@@ -26,9 +27,77 @@ class CenterApiException implements Exception {
 }
 
 class CenterApiService {
-  CenterApiService({http.Client? client}) : _client = client ?? http.Client();
+  CenterApiService({http.Client? client, String? apiBaseUrl})
+    : _client = client ?? http.Client(),
+      _apiBaseUrl = apiBaseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
+  final String _apiBaseUrl;
+
+  Future<TrainingPreferences?> getTrainingPreferences() async {
+    final response = await _get('/api/member/training-preferences');
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Training preferences could not be loaded.',
+      );
+    }
+    return _readTrainingPreferences(response.body);
+  }
+
+  Future<TrainingPreferences> saveTrainingPreferences(
+    TrainingPreferences preferences,
+  ) async {
+    final response = await _put(
+      '/api/member/training-preferences',
+      preferences.toJson(),
+    );
+    if (response.statusCode == 404) {
+      throw const CenterApiException('The active member could not be found.');
+    }
+    if (response.statusCode != 200) {
+      throw CenterApiException(
+        _readProblemMessage(
+          response.body,
+          'Training preferences could not be saved. Please try again.',
+        ),
+      );
+    }
+    return _readTrainingPreferences(response.body);
+  }
+
+  TrainingPreferences _readTrainingPreferences(String body) {
+    try {
+      return TrainingPreferences.fromJson(_readObject(_decodeJson(body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<http.Response> _put(String path, Map<String, Object?> body) async {
+    final baseUrl = _apiBaseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw const CenterApiException('API_BASE_URL is not configured.');
+    }
+    try {
+      final uri = Uri.parse(baseUrl).resolve(path);
+      return await _client
+          .put(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on FormatException {
+      throw const CenterApiException('API_BASE_URL is not a valid URL.');
+    } on TimeoutException {
+      throw const CenterApiException(
+        'The IronBook API did not respond in time.',
+      );
+    } on http.ClientException {
+      throw const CenterApiException('Unable to connect to the IronBook API.');
+    }
+  }
 
   Future<List<MemberProgressLog>> getMemberProgressLog({
     DateTime? fromDate,
@@ -542,7 +611,7 @@ class CenterApiService {
   }
 
   Future<http.Response> _get(String path) async {
-    final baseUrl = AppConfig.apiBaseUrl.trim();
+    final baseUrl = _apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
       throw const CenterApiException('API_BASE_URL is not configured.');
     }
@@ -563,7 +632,7 @@ class CenterApiService {
   }
 
   Future<http.Response> _post(String path, Map<String, Object?> body) async {
-    final baseUrl = AppConfig.apiBaseUrl.trim();
+    final baseUrl = _apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
       throw const CenterApiException('API_BASE_URL is not configured.');
     }

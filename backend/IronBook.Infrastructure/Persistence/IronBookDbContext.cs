@@ -14,6 +14,8 @@ public class IronBookDbContext : DbContext
 
     public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();
 
+    public DbSet<TrainingPreference> TrainingPreferences => Set<TrainingPreference>();
+
     public DbSet<TrainerProfile> TrainerProfiles => Set<TrainerProfile>();
 
     public DbSet<TrainerCenterAssignment> TrainerCenterAssignments => Set<TrainerCenterAssignment>();

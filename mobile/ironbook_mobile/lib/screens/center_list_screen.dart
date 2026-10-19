@@ -7,6 +7,7 @@ import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
 import 'member_progress_log_screen.dart';
 import 'trainer_dashboard_screen.dart';
+import 'training_preferences_screen.dart';
 
 class CenterListScreen extends StatefulWidget {
   const CenterListScreen({super.key, required this.centerApiService});
@@ -102,6 +103,17 @@ class _CenterListScreenState extends State<CenterListScreen> {
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (context) => MemberProgressLogScreen(
+                centerApiService: widget.centerApiService,
+              ),
+            ),
+          ),
+        ),
+        IronBookMobileButton.secondary(
+          label: 'Training Preferences',
+          icon: Icons.tune,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => TrainingPreferencesScreen(
                 centerApiService: widget.centerApiService,
               ),
             ),
