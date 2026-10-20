@@ -314,10 +314,12 @@ class IronBookBottomNav extends StatelessWidget {
     super.key,
     this.activeLabel = 'Home',
     this.onDashboardTap,
+    this.onProfileTap,
   });
 
   final String activeLabel;
   final VoidCallback? onDashboardTap;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -357,6 +359,7 @@ class IronBookBottomNav extends StatelessWidget {
             icon: Icons.person_outline,
             label: 'Profile',
             active: activeLabel == 'Profile',
+            onTap: onProfileTap,
           ),
         ),
       ],

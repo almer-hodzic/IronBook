@@ -45,6 +45,7 @@ services:
     container_name: ironbook-api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      DevelopmentMember__MemberProfileId: ${DevelopmentMember__MemberProfileId:-}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=Change_this_dev_password_123!;TrustServerCertificate=True;}
       RabbitMQ__Host: ${RabbitMQ__Host:-rabbitmq}

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../app_config.dart';
 import '../models/center.dart';
+import '../models/member_profile.dart';
 import '../models/group_training.dart';
 import '../models/member_progress_log.dart';
 import '../models/member_recommendations.dart';
@@ -35,6 +36,51 @@ class CenterApiService {
 
   final http.Client _client;
   final String _apiBaseUrl;
+
+  Future<MemberProfile> getMemberProfile() async {
+    final response = await _get('/api/member/profile');
+    if (response.statusCode != 200) {
+      throw CenterApiException(
+        _readProblemMessage(
+          response.body,
+          'Your profile could not be loaded. Please try again.',
+        ),
+      );
+    }
+    return _parseMemberProfile(response.body);
+  }
+
+  Future<MemberProfile> updateMemberProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phoneNumber,
+  }) async {
+    final phone = phoneNumber?.trim();
+    final response = await _put('/api/member/profile', {
+      'firstName': firstName.trim(),
+      'lastName': lastName.trim(),
+      'email': email.trim(),
+      'phoneNumber': phone == null || phone.isEmpty ? null : phone,
+    });
+    if (response.statusCode != 200) {
+      throw CenterApiException(
+        _readProblemMessage(
+          response.body,
+          'Your profile could not be saved. Please try again.',
+        ),
+      );
+    }
+    return _parseMemberProfile(response.body);
+  }
+
+  MemberProfile _parseMemberProfile(String body) {
+    try {
+      return MemberProfile.fromJson(_readObject(_decodeJson(body)));
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
 
   Future<List<TrainingRequestResult>> getMyTrainings({String? status}) async {
     final path = Uri(

@@ -4,5 +4,6 @@ namespace IronBook.Infrastructure.Memberships;
 
 public interface IDevelopmentMemberResolver
 {
-    Task<MemberProfile?> ResolveAsync(int? memberProfileId = null, CancellationToken cancellationToken = default);
+    Task<MemberProfile?> ResolveAsync(int? memberProfileId = null, CancellationToken cancellationToken = default,
+        bool includeInactive = false);
 }

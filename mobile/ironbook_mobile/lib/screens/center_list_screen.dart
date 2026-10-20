@@ -6,6 +6,7 @@ import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
+import 'member_profile_screen.dart';
 import 'member_progress_log_screen.dart';
 import 'member_notifications_screen.dart';
 import 'my_trainings_screen.dart';
@@ -73,6 +74,15 @@ class _CenterListScreenState extends State<CenterListScreen> {
     );
   }
 
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            MemberProfileScreen(centerApiService: widget.centerApiService),
+      ),
+    );
+  }
+
   Future<void> _openNotifications() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -90,7 +100,10 @@ class _CenterListScreenState extends State<CenterListScreen> {
   @override
   Widget build(BuildContext context) {
     return IronBookMobileShell(
-      bottomNav: IronBookBottomNav(onDashboardTap: _openTrainerDashboard),
+      bottomNav: IronBookBottomNav(
+        onDashboardTap: _openTrainerDashboard,
+        onProfileTap: _openProfile,
+      ),
       children: [
         IronBookMobileHeader(
           title: 'Choose Your Center',
@@ -118,7 +131,11 @@ class _CenterListScreenState extends State<CenterListScreen> {
                 },
               ),
               const SizedBox(width: 8),
-              const _AvatarBadge(),
+              IconButton(
+                tooltip: 'Member Profile',
+                icon: const Icon(Icons.person_outline),
+                onPressed: _openProfile,
+              ),
             ],
           ),
         ),
@@ -220,32 +237,6 @@ class _CenterListScreenState extends State<CenterListScreen> {
           );
         })
         .toList(growable: false);
-  }
-}
-
-class _AvatarBadge extends StatelessWidget {
-  const _AvatarBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: IronBookMobileColors.slate900,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: IronBookMobileColors.slate900),
-      ),
-      child: const Text(
-        'AL',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
   }
 }
 

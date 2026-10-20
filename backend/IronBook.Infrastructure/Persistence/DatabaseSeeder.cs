@@ -1,4 +1,5 @@
 using IronBook.Domain.Entities;
+using IronBook.Infrastructure.Memberships;
 using Microsoft.EntityFrameworkCore;
 
 namespace IronBook.Infrastructure.Persistence;
@@ -6,10 +7,12 @@ namespace IronBook.Infrastructure.Persistence;
 public sealed class DatabaseSeeder
 {
     private readonly IronBookDbContext _dbContext;
+    private readonly IDevelopmentMemberResolver _memberResolver;
 
-    public DatabaseSeeder(IronBookDbContext dbContext)
+    public DatabaseSeeder(IronBookDbContext dbContext, IDevelopmentMemberResolver memberResolver)
     {
         _dbContext = dbContext;
+        _memberResolver = memberResolver;
     }
 
     public async Task SeedDevelopmentDataAsync(CancellationToken cancellationToken = default)
@@ -63,8 +66,7 @@ public sealed class DatabaseSeeder
     {
         const string email = "member@ironbook.local";
 
-        var existingMember = await _dbContext.MemberProfiles
-            .FirstOrDefaultAsync(member => member.Email == email, cancellationToken);
+        var existingMember = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken, includeInactive: true);
 
         if (existingMember is null)
         {
@@ -77,13 +79,6 @@ public sealed class DatabaseSeeder
                 IsActive = true
             });
         }
-        else
-        {
-            existingMember.FirstName = "Development";
-            existingMember.LastName = "Member";
-            existingMember.IsActive = true;
-        }
-
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
