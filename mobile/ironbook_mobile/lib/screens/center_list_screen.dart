@@ -8,6 +8,7 @@ import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
 import 'member_progress_log_screen.dart';
 import 'member_notifications_screen.dart';
+import 'my_trainings_screen.dart';
 import 'trainer_dashboard_screen.dart';
 import 'training_preferences_screen.dart';
 
@@ -130,6 +131,16 @@ class _CenterListScreenState extends State<CenterListScreen> {
           },
         ),
         const _MemberAccessCard(),
+        IronBookMobileButton.secondary(
+          label: 'My Trainings',
+          icon: Icons.event_note_outlined,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) =>
+                  MyTrainingsScreen(centerApiService: widget.centerApiService),
+            ),
+          ),
+        ),
         IronBookMobileButton.secondary(
           label: 'Progress Log',
           icon: Icons.history,

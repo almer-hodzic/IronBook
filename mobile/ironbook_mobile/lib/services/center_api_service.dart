@@ -36,6 +36,61 @@ class CenterApiService {
   final http.Client _client;
   final String _apiBaseUrl;
 
+  Future<List<TrainingRequestResult>> getMyTrainings({String? status}) async {
+    final path = Uri(
+      path: '/api/member/my-trainings',
+      queryParameters: status == null ? null : {'status': status},
+    ).toString();
+    final response = await _get(path);
+    if (response.statusCode != 200) {
+      throw const CenterApiException('My trainings could not be loaded.');
+    }
+    final decoded = _decodeJson(response.body);
+    if (decoded is! List) {
+      throw const CenterApiException('Invalid my trainings response.');
+    }
+    try {
+      // Keep the API's upcoming-first, then newest-past ordering.
+      return decoded
+          .map((item) => TrainingRequestResult.fromJson(_readObject(item)))
+          .toList();
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
+  Future<TrainingRequestResult> cancelMyTraining(int id) async {
+    final response = await _post('/api/member/my-trainings/$id/cancel', {});
+    if (response.statusCode == 404) {
+      throw const CenterApiException(
+        'This training request is no longer available. Refresh your trainings.',
+      );
+    }
+    if (response.statusCode == 409) {
+      throw const CenterApiException(
+        'This training can no longer be cancelled. Refresh your trainings.',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw const CenterApiException(
+        'Training could not be cancelled. Please try again.',
+      );
+    }
+    try {
+      final training = TrainingRequestResult.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
+      if (training.id != id || training.status != 'Cancelled') {
+        throw const FormatException(
+          'The API did not confirm this training as cancelled.',
+        );
+      }
+      return training;
+    } on FormatException catch (error) {
+      throw CenterApiException(error.message);
+    }
+  }
+
   Future<List<MemberNotification>> getMemberNotifications() async {
     final response = await _get('/api/member/notifications');
     if (response.statusCode != 200) {

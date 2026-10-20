@@ -39,6 +39,7 @@ builder.Services.AddScoped<IMemberGroupTrainingService, MemberGroupTrainingServi
 builder.Services.AddScoped<IAdminTrainerService, AdminTrainerService>();
 builder.Services.AddScoped<IMemberTrainerService, MemberTrainerService>();
 builder.Services.AddScoped<IMemberTrainingRequestService, MemberTrainingRequestService>();
+builder.Services.AddScoped<IMemberMyTrainingsService, MemberMyTrainingsService>();
 builder.Services.AddScoped<IAdminCoachingRequestService, AdminCoachingRequestService>();
 builder.Services.AddScoped<ITrainerDashboardService, TrainerDashboardService>();
 builder.Services.AddScoped<ITrainerTrainingReportService, TrainerTrainingReportService>();
