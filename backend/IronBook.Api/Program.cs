@@ -31,11 +31,21 @@ using IronBook.Infrastructure.Trainers;
 using Microsoft.EntityFrameworkCore;
 using IronBook.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
+using IronBook.Application.Auth;
+using IronBook.Infrastructure.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(options => options.IsValid(),
+        "Configure Jwt issuer, audience, a private signing key of at least 32 UTF-8 bytes (no default/example key), and a positive ExpirationMinutes.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ICenterReadService, CenterReadService>();
@@ -75,6 +85,9 @@ builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 
 var app = builder.Build();
 
+// Fail on invalid JWT configuration before running development seed/database work.
+_ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<JwtOptions>>().Value;
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -95,3 +108,5 @@ app.MapGet("/health", () => Results.Ok(new
 .WithName("HealthCheck");
 
 app.Run();
+
+public partial class Program { }

@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IronBook.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IronBook.Notifications.Worker", "backend\IronBook.Notifications.Worker\IronBook.Notifications.Worker.csproj", "{8E1597EF-B991-44FA-8204-7E33541953B0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IronBook.Api.Tests", "backend\IronBook.Api.Tests\IronBook.Api.Tests.csproj", "{942133BD-E3EC-4273-AF8D-AB8902A350B8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,18 @@ Global
 		{8E1597EF-B991-44FA-8204-7E33541953B0}.Release|x64.Build.0 = Release|Any CPU
 		{8E1597EF-B991-44FA-8204-7E33541953B0}.Release|x86.ActiveCfg = Release|Any CPU
 		{8E1597EF-B991-44FA-8204-7E33541953B0}.Release|x86.Build.0 = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|x64.Build.0 = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Debug|x86.Build.0 = Debug|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|x64.ActiveCfg = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|x64.Build.0 = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|x86.ActiveCfg = Release|Any CPU
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,5 +109,6 @@ Global
 		{1CB6861E-0D46-4D15-A8AC-E530EB00D1CB} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 		{FCF14C48-6F51-41F7-A555-2D74FA02B7E5} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 		{8E1597EF-B991-44FA-8204-7E33541953B0} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
+		{942133BD-E3EC-4273-AF8D-AB8902A350B8} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 	EndGlobalSection
 EndGlobal
