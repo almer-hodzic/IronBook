@@ -7,6 +7,7 @@ import '../services/admin_group_training_api_service.dart';
 import '../services/admin_membership_plan_api_service.dart';
 import '../services/admin_trainer_api_service.dart';
 import '../services/admin_reports_api_service.dart';
+import '../services/admin_payment_api_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'centers_management_screen.dart';
@@ -15,6 +16,7 @@ import 'coaching_requests_screen.dart';
 import 'membership_plans_screen.dart';
 import 'trainers_management_screen.dart';
 import 'admin_reports_screen.dart';
+import 'admin_payments_screen.dart';
 
 enum AdminSection {
   dashboard,
@@ -24,6 +26,7 @@ enum AdminSection {
   memberships,
   checkIn,
   reports,
+  payments,
 }
 
 class AdminShell extends StatefulWidget {
@@ -36,6 +39,7 @@ class AdminShell extends StatefulWidget {
     required this.membershipPlanApiService,
     required this.trainerApiService,
     required this.reportsApiService,
+    required this.paymentApiService,
   });
 
   final AdminCenterApiService centerApiService;
@@ -45,6 +49,7 @@ class AdminShell extends StatefulWidget {
   final AdminMembershipPlanApiService membershipPlanApiService;
   final AdminTrainerApiService trainerApiService;
   final AdminReportsApiService reportsApiService;
+  final AdminPaymentApiService paymentApiService;
 
   @override
   State<AdminShell> createState() => _AdminShellState();
@@ -56,6 +61,9 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     final content = switch (_activeSection) {
+      AdminSection.payments => AdminPaymentsScreen(
+        paymentApiService: widget.paymentApiService,
+      ),
       AdminSection.reports => AdminReportsScreen(
         reportsApiService: widget.reportsApiService,
       ),
@@ -417,10 +425,12 @@ class _AdminSidebar extends StatelessWidget {
         selected: activeSection == AdminSection.checkIn,
         onTap: () => onSectionChanged(AdminSection.checkIn),
       ),
-      const _SidebarItem(
+      _SidebarItem(
         icon: Icons.payments_outlined,
         label: 'Payments',
-        enabled: false,
+        enabled: true,
+        selected: activeSection == AdminSection.payments,
+        onTap: () => onSectionChanged(AdminSection.payments),
       ),
       _SidebarItem(
         icon: Icons.insert_chart_outlined,
@@ -624,7 +634,6 @@ class _AdminDashboardHome extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: const [
-              _DeferredChip(icon: Icons.payments_outlined, label: 'Payments'),
               _DeferredChip(
                 icon: Icons.insert_chart_outlined,
                 label: 'Reports',

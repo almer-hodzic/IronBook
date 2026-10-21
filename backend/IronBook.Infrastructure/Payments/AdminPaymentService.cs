@@ -1,0 +1,94 @@
+using IronBook.Application.Payments;
+using IronBook.Domain.Entities;
+using IronBook.Domain.Enums;
+using IronBook.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace IronBook.Infrastructure.Payments;
+
+public sealed class AdminPaymentService(IronBookDbContext dbContext) : IAdminPaymentService
+{
+    public async Task<AdminPaymentListResult> GetPaymentsAsync(
+        AdminPaymentFilter filter, CancellationToken cancellationToken = default)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var status = ParseFilter<PaymentStatus>(filter.Status, "Status", errors);
+        var method = ParseFilter<PaymentMethod>(filter.PaymentMethod, "PaymentMethod", errors);
+        if (filter.CenterId.HasValue &&
+            !await dbContext.Centers.AnyAsync(center => center.Id == filter.CenterId, cancellationToken))
+            errors["CenterId"] = ["The selected center does not exist."];
+        if (errors.Count > 0) return new([], errors);
+
+        var query = dbContext.Payments.AsNoTracking().AsQueryable();
+        if (status.HasValue) query = query.Where(payment => payment.PaymentStatus == status);
+        if (method.HasValue) query = query.Where(payment => payment.PaymentMethod == method);
+        if (filter.CenterId.HasValue) query = query.Where(payment => payment.Membership.CenterId == filter.CenterId);
+        var search = filter.Search?.Trim();
+        if (!string.IsNullOrEmpty(search))
+        {
+            var term = search.ToUpperInvariant();
+            query = query.Where(payment =>
+                (payment.Membership.MemberProfile.FirstName + " " + payment.Membership.MemberProfile.LastName).ToUpper().Contains(term) ||
+                payment.Membership.MemberProfile.Email.ToUpper().Contains(term));
+        }
+        var payments = await Project(query.OrderByDescending(payment => payment.CreatedAt).ThenByDescending(payment => payment.Id))
+            .ToListAsync(cancellationToken);
+        return new(payments, errors);
+    }
+
+    public async Task<AdminPaymentConfirmationResult> ConfirmReceptionAsync(
+        int id, CancellationToken cancellationToken = default)
+    {
+        var payment = await Project(dbContext.Payments.AsNoTracking().Where(payment => payment.Id == id))
+            .SingleOrDefaultAsync(cancellationToken);
+        if (payment is null) return AdminPaymentConfirmationResult.Missing();
+        if (payment.PaymentMethod != nameof(PaymentMethod.Reception) || payment.PaymentStatus != nameof(PaymentStatus.PendingReception))
+            return AdminPaymentConfirmationResult.Conflict("Only a pending reception payment can be confirmed.");
+        if (payment.MembershipStatus != nameof(MembershipStatus.Pending))
+            return AdminPaymentConfirmationResult.Conflict("The associated membership must still be pending.");
+
+        var today = DateTime.UtcNow.Date;
+        if (payment.MembershipEndDate.Date < today || payment.MembershipEndDate < payment.MembershipStartDate)
+            return AdminPaymentConfirmationResult.Conflict("The membership dates are no longer valid. Confirmation cannot extend or replace the membership.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // Claim the pending membership first. A concurrent confirmation of this membership
+        // waits, then affects zero rows. Both conditional updates roll back together on failure.
+        var membershipsChanged = await dbContext.Memberships
+            .Where(membership => membership.Id == payment.MembershipId && membership.Status == MembershipStatus.Pending &&
+                membership.EndDate.Date >= today && membership.EndDate >= membership.StartDate)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(membership => membership.Status, MembershipStatus.Active), cancellationToken);
+        if (membershipsChanged != 1)
+            return AdminPaymentConfirmationResult.Conflict("The membership changed or is no longer eligible. Refresh the payments.");
+
+        var paymentsChanged = await dbContext.Payments
+            .Where(candidate => candidate.Id == id && candidate.MembershipId == payment.MembershipId &&
+                candidate.PaymentMethod == PaymentMethod.Reception && candidate.PaymentStatus == PaymentStatus.PendingReception)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(candidate => candidate.PaymentStatus, PaymentStatus.Completed), cancellationToken);
+        if (paymentsChanged != 1)
+            return AdminPaymentConfirmationResult.Conflict("The payment changed or has already been confirmed. Refresh the payments.");
+
+        var updated = await Project(dbContext.Payments.AsNoTracking().Where(candidate => candidate.Id == id))
+            .SingleAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return AdminPaymentConfirmationResult.Success(updated);
+    }
+
+    private static T? ParseFilter<T>(string? value, string field, Dictionary<string, string[]> errors) where T : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var name = Enum.GetNames<T>().FirstOrDefault(name => string.Equals(name, value.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (name is not null) return Enum.Parse<T>(name);
+        errors[field] = [$"Allowed values: {string.Join(", ", Enum.GetNames<T>())}."];
+        return null;
+    }
+
+    private static IQueryable<AdminPaymentDto> Project(IQueryable<Payment> query) => query.Select(payment => new AdminPaymentDto(
+        payment.Id, payment.Membership.MemberProfileId,
+        payment.Membership.MemberProfile.FirstName + " " + payment.Membership.MemberProfile.LastName,
+        payment.Membership.MemberProfile.Email,
+        payment.MembershipId, payment.Membership.MembershipPlan.Name,
+        payment.Membership.CenterId, payment.Membership.Center.Name, payment.Amount,
+        payment.PaymentMethod.ToString(), payment.PaymentStatus.ToString(), payment.Membership.Status.ToString(),
+        payment.CreatedAt, payment.Membership.StartDate, payment.Membership.EndDate));
+}
