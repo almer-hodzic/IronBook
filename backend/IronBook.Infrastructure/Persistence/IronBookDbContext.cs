@@ -10,6 +10,10 @@ public class IronBookDbContext : DbContext
     {
     }
 
+    public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+
     public DbSet<Center> Centers => Set<Center>();
 
     public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();

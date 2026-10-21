@@ -22,6 +22,93 @@ namespace IronBook.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("IronBook.Domain.Entities.Account", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MemberProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int?>("TrainerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberProfileId")
+                        .IsUnique()
+                        .HasFilter("[MemberProfileId] IS NOT NULL");
+
+                    b.HasIndex("TrainerProfileId")
+                        .IsUnique()
+                        .HasFilter("[TrainerProfileId] IS NOT NULL");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Accounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Accounts_RoleProfile", "([Role] = 'Admin' AND [MemberProfileId] IS NULL AND [TrainerProfileId] IS NULL) OR ([Role] = 'Member' AND [MemberProfileId] IS NOT NULL AND [TrainerProfileId] IS NULL) OR ([Role] = 'Trainer' AND [TrainerProfileId] IS NOT NULL AND [MemberProfileId] IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.AuthSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "RevokedAt");
+
+                    b.ToTable("AuthSessions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AuthSessions_ExpiresAt", "[ExpiresAt] > [CreatedAt]");
+                        });
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.Center", b =>
                 {
                     b.Property<int>("Id")
@@ -691,6 +778,34 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.ToTable("TrainingRequests");
                 });
 
+            modelBuilder.Entity("IronBook.Domain.Entities.Account", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.MemberProfile", "MemberProfile")
+                        .WithOne()
+                        .HasForeignKey("IronBook.Domain.Entities.Account", "MemberProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("IronBook.Domain.Entities.TrainerProfile", "TrainerProfile")
+                        .WithOne()
+                        .HasForeignKey("IronBook.Domain.Entities.Account", "TrainerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("MemberProfile");
+
+                    b.Navigation("TrainerProfile");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.AuthSession", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.Account", "Account")
+                        .WithMany("AuthSessions")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.CheckIn", b =>
                 {
                     b.HasOne("IronBook.Domain.Entities.Center", "Center")
@@ -936,6 +1051,11 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.Navigation("MemberProfile");
 
                     b.Navigation("TrainerProfile");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.Account", b =>
+                {
+                    b.Navigation("AuthSessions");
                 });
 
             modelBuilder.Entity("IronBook.Domain.Entities.Center", b =>

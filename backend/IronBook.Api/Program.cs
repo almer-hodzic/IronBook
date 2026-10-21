@@ -29,6 +29,8 @@ using IronBook.Infrastructure.TrainingPreferences;
 using IronBook.Infrastructure.TrainingRequests;
 using IronBook.Infrastructure.Trainers;
 using Microsoft.EntityFrameworkCore;
+using IronBook.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +71,7 @@ builder.Services.AddScoped<IMembershipCheckoutService, MembershipCheckoutService
 builder.Services.AddScoped<IMyMembershipService, MyMembershipService>();
 builder.Services.AddScoped<ICheckInValidationService, CheckInValidationService>();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 
 var app = builder.Build();
 

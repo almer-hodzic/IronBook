@@ -1,5 +1,7 @@
 using IronBook.Domain.Entities;
+using IronBook.Domain.Security;
 using IronBook.Infrastructure.Memberships;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace IronBook.Infrastructure.Persistence;
@@ -8,18 +10,64 @@ public sealed class DatabaseSeeder
 {
     private readonly IronBookDbContext _dbContext;
     private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly IPasswordHasher<Account> _passwordHasher;
 
-    public DatabaseSeeder(IronBookDbContext dbContext, IDevelopmentMemberResolver memberResolver)
+    public DatabaseSeeder(
+        IronBookDbContext dbContext,
+        IDevelopmentMemberResolver memberResolver,
+        IPasswordHasher<Account> passwordHasher)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task SeedDevelopmentDataAsync(CancellationToken cancellationToken = default)
     {
         await SeedCentersAsync(cancellationToken);
-        await SeedDevelopmentMemberAsync(cancellationToken);
-        await SeedDevelopmentTrainerAsync(cancellationToken);
+        await SeedEvaluatorAccountsAsync(cancellationToken);
+    }
+
+    private async Task SeedEvaluatorAccountsAsync(CancellationToken cancellationToken)
+    {
+        // Existing accounts retain their passwords, activation state and profile links.
+        // In particular, do not look up an already linked profile by its editable email.
+        if (!await _dbContext.Accounts.AnyAsync(account => account.Username == "admin", cancellationToken))
+        {
+            await AddAccountAsync("admin", AppRoles.Admin, null, null, cancellationToken);
+        }
+
+        if (!await _dbContext.Accounts.AnyAsync(account => account.Username == "member", cancellationToken))
+        {
+            var memberId = await SeedDevelopmentMemberAsync(cancellationToken);
+            await AddAccountAsync("member", AppRoles.Member, memberId, null, cancellationToken);
+        }
+
+        if (!await _dbContext.Accounts.AnyAsync(account => account.Username == "trainer", cancellationToken))
+        {
+            var trainerId = await SeedDevelopmentTrainerAsync(cancellationToken);
+            await AddAccountAsync("trainer", AppRoles.Trainer, null, trainerId, cancellationToken);
+        }
+    }
+
+    private async Task AddAccountAsync(
+        string username,
+        string role,
+        int? memberProfileId,
+        int? trainerProfileId,
+        CancellationToken cancellationToken)
+    {
+        var account = new Account
+        {
+            Username = username,
+            Role = role,
+            MemberProfileId = memberProfileId,
+            TrainerProfileId = trainerProfileId
+        };
+        // Evaluator-only password: persist only the standard salted password hash.
+        account.PasswordHash = _passwordHasher.HashPassword(account, "test");
+        _dbContext.Accounts.Add(account);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task SeedCentersAsync(CancellationToken cancellationToken)
@@ -62,7 +110,7 @@ public sealed class DatabaseSeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task SeedDevelopmentMemberAsync(CancellationToken cancellationToken)
+    private async Task<int> SeedDevelopmentMemberAsync(CancellationToken cancellationToken)
     {
         const string email = "member@ironbook.local";
 
@@ -70,19 +118,21 @@ public sealed class DatabaseSeeder
 
         if (existingMember is null)
         {
-            _dbContext.MemberProfiles.Add(new MemberProfile
+            existingMember = new MemberProfile
             {
                 FirstName = "Development",
                 LastName = "Member",
                 Email = email,
                 PhoneNumber = null,
                 IsActive = true
-            });
+            };
+            _dbContext.MemberProfiles.Add(existingMember);
         }
         await _dbContext.SaveChangesAsync(cancellationToken);
+        return existingMember.Id;
     }
 
-    private async Task SeedDevelopmentTrainerAsync(CancellationToken cancellationToken)
+    private async Task<int> SeedDevelopmentTrainerAsync(CancellationToken cancellationToken)
     {
         const string email = "trainer@ironbook.local";
 
@@ -91,7 +141,7 @@ public sealed class DatabaseSeeder
 
         if (existingTrainer is null)
         {
-            _dbContext.TrainerProfiles.Add(new TrainerProfile
+            existingTrainer = new TrainerProfile
             {
                 FirstName = "Development",
                 LastName = "Trainer",
@@ -99,16 +149,12 @@ public sealed class DatabaseSeeder
                 PhoneNumber = null,
                 Biography = null,
                 IsActive = true
-            });
-        }
-        else
-        {
-            existingTrainer.FirstName = "Development";
-            existingTrainer.LastName = "Trainer";
-            existingTrainer.IsActive = true;
+            };
+            _dbContext.TrainerProfiles.Add(existingTrainer);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        return existingTrainer.Id;
     }
 
     private sealed record CenterSeed(string Name, string Location, IReadOnlyCollection<string>? LegacyNames = null)
