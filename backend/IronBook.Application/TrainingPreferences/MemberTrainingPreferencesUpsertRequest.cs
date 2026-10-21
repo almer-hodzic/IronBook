@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace IronBook.Application.TrainingPreferences;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class MemberTrainingPreferencesUpsertRequest : IValidatableObject
 {
     private static readonly HashSet<string> AllowedGoals = new(StringComparer.Ordinal)

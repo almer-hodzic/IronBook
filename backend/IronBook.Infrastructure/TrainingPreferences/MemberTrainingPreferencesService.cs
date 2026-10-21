@@ -1,6 +1,6 @@
 using IronBook.Application.TrainingPreferences;
 using IronBook.Domain.Entities;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +9,11 @@ namespace IronBook.Infrastructure.TrainingPreferences;
 public sealed class MemberTrainingPreferencesService : IMemberTrainingPreferencesService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
     public MemberTrainingPreferencesService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;

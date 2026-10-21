@@ -48,6 +48,9 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuthSessionValidator, AuthSessionValidator>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentAccountContext, CurrentAccountContext>();
+builder.Services.AddScoped<ICurrentMemberService, CurrentMemberService>();
 builder.Services.AddIronBookJwtAuthentication();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));

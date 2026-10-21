@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using IronBook.Application.MemberProfiles;
 using IronBook.Domain.Entities;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,9 +10,9 @@ namespace IronBook.Infrastructure.MemberProfiles;
 public sealed class MemberProfileService : IMemberProfileService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
-    public MemberProfileService(IronBookDbContext dbContext, IDevelopmentMemberResolver memberResolver)
+    public MemberProfileService(IronBookDbContext dbContext, ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;

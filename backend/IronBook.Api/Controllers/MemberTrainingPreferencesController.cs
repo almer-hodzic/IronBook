@@ -1,9 +1,12 @@
 using IronBook.Application.TrainingPreferences;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Member)]
 [Route("api/member/training-preferences")]
 public sealed class MemberTrainingPreferencesController : ControllerBase
 {
