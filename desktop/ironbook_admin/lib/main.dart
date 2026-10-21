@@ -7,6 +7,7 @@ import 'services/admin_coaching_request_api_service.dart';
 import 'services/admin_group_training_api_service.dart';
 import 'services/admin_membership_plan_api_service.dart';
 import 'services/admin_trainer_api_service.dart';
+import 'services/admin_reports_api_service.dart';
 import 'theme/ironbook_admin_theme.dart';
 
 void main() {
@@ -28,6 +29,7 @@ class IronBookAdminApp extends StatelessWidget {
         groupTrainingApiService: AdminGroupTrainingApiService(),
         membershipPlanApiService: AdminMembershipPlanApiService(),
         trainerApiService: AdminTrainerApiService(),
+        reportsApiService: AdminReportsApiService(),
       ),
     );
   }
