@@ -1,9 +1,12 @@
 using IronBook.Application.Payments;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Admin)]
 [Route("api/admin/payments")]
 public sealed class AdminPaymentsController(IAdminPaymentService paymentService) : ControllerBase
 {

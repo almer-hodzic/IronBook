@@ -33,6 +33,7 @@ using IronBook.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using IronBook.Application.Auth;
 using IronBook.Infrastructure.Auth;
+using IronBook.Api.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,8 @@ builder.Services.AddOptions<JwtOptions>()
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthSessionValidator, AuthSessionValidator>();
+builder.Services.AddIronBookJwtAuthentication();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ICenterReadService, CenterReadService>();
@@ -97,6 +100,9 @@ if (app.Environment.IsDevelopment())
     await seeder.SeedDevelopmentDataAsync();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -105,7 +111,7 @@ app.MapGet("/health", () => Results.Ok(new
     status = "Healthy",
     environment = app.Environment.EnvironmentName
 }))
-.WithName("HealthCheck");
+.WithName("HealthCheck").AllowAnonymous();
 
 app.Run();
 
