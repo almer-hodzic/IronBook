@@ -2,7 +2,6 @@ using IronBook.Application.GroupTrainings;
 using IronBook.Application.Auth;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,16 +10,13 @@ namespace IronBook.Infrastructure.GroupTrainings;
 public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
     private readonly ICurrentMemberService _currentMemberService;
 
     public MemberGroupTrainingService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver,
         ICurrentMemberService currentMemberService)
     {
         _dbContext = dbContext;
-        _memberResolver = memberResolver;
         _currentMemberService = currentMemberService;
     }
 
@@ -29,7 +25,7 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
         string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var member = await _memberResolver.ResolveAsync(null, cancellationToken);
+        var member = await _currentMemberService.ResolveAsync(cancellationToken);
         var memberId = member?.Id;
         var query = AvailableQuery(centerId, memberId);
         var trimmedSearch = search?.Trim();
@@ -56,7 +52,7 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
         int groupTrainingId,
         CancellationToken cancellationToken = default)
     {
-        var member = await _memberResolver.ResolveAsync(null, cancellationToken);
+        var member = await _currentMemberService.ResolveAsync(cancellationToken);
 
         return await AvailableQuery(centerId, member?.Id)
             .Where(training => training.Id == groupTrainingId)

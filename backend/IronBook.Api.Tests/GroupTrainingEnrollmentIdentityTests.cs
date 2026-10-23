@@ -9,7 +9,6 @@ using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Domain.Security;
 using IronBook.Infrastructure.GroupTrainings;
-using IronBook.Infrastructure.Memberships;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -156,19 +155,18 @@ public class GroupTrainingEnrollmentIdentityTests
     }
 
     [Fact]
-    public async Task Browse_and_details_still_allow_anonymous_and_keep_development_identity_behavior()
+    public async Task Browse_and_details_keep_enrolled_full_session_for_authenticated_Member()
     {
         using var factory = new AuthFactory();
         var fixture = await Prepare(factory);
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
-        // Existing browse behavior resolves the development member by its configured fallback.
-        (await db.MemberProfiles.SingleAsync(row => row.Id == fixture.MemberId)).Email = "member@ironbook.local";
         db.GroupTrainingEnrollments.Add(new GroupTrainingEnrollment
             { GroupTrainingId = fixture.GroupId, MemberProfileId = fixture.MemberId });
         (await db.GroupTrainings.SingleAsync()).Capacity = 1;
         await db.SaveChangesAsync();
         using var client = factory.CreateClient();
+        await Authenticate(client, "member");
         var browseRoute = $"/api/centers/{fixture.CenterId}/group-trainings";
         var list = await client.GetAsync(browseRoute);
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
@@ -182,12 +180,12 @@ public class GroupTrainingEnrollmentIdentityTests
     }
 
     [Fact]
-    public void Only_enrollment_action_requires_Member_and_accepts_no_identity_body()
+    public void Group_actions_require_Member_and_enrollment_accepts_no_identity_body()
     {
         var controller = typeof(CenterGroupTrainingsController);
         Assert.Empty(controller.GetCustomAttributes<AuthorizeAttribute>());
         foreach (var name in new[] { "GetGroupTrainings", "GetGroupTraining" })
-            Assert.Empty(controller.GetMethod(name)!.GetCustomAttributes<AuthorizeAttribute>());
+            Assert.Equal(AppRoles.Member, Assert.Single(controller.GetMethod(name)!.GetCustomAttributes<AuthorizeAttribute>()).Roles);
         var enroll = controller.GetMethod("Enroll")!;
         Assert.Equal(AppRoles.Member, Assert.Single(enroll.GetCustomAttributes<AuthorizeAttribute>()).Roles);
         Assert.Equal(new[] { "centerId", "groupTrainingId", "cancellationToken" }, enroll.GetParameters().Select(parameter => parameter.Name));
@@ -201,20 +199,14 @@ public class GroupTrainingEnrollmentIdentityTests
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
         var current = new CurrentMemberStub(await db.MemberProfiles.SingleAsync(row => row.Id == fixture.MemberId));
-        var service = new MemberGroupTrainingService(db, new ThrowingDevelopmentResolver(), current);
+        var service = new MemberGroupTrainingService(db, current);
         var result = await service.EnrollAsync(fixture.CenterId, fixture.GroupId);
         Assert.True(result.Succeeded);
         Assert.Equal(fixture.MemberId, result.Enrollment!.MemberProfileId);
-        var missing = new MemberGroupTrainingService(db, new ThrowingDevelopmentResolver(), new CurrentMemberStub(null));
+        var missing = new MemberGroupTrainingService(db, new CurrentMemberStub(null));
         Assert.Equal(GroupTrainingEnrollmentFailureKind.NotFound,
             (await missing.EnrollAsync(fixture.CenterId, fixture.GroupId)).FailureKind);
         Assert.Single(await db.GroupTrainingEnrollments.ToListAsync());
-    }
-
-    private sealed class ThrowingDevelopmentResolver : IDevelopmentMemberResolver
-    {
-        public Task<MemberProfile?> ResolveAsync(int? memberProfileId = null, CancellationToken cancellationToken = default,
-            bool includeInactive = false) => throw new InvalidOperationException("Enrollment must not resolve a development member.");
     }
 
     private sealed class CurrentMemberStub(MemberProfile? member) : ICurrentMemberService

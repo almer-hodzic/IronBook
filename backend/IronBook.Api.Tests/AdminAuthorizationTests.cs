@@ -157,7 +157,10 @@ public class AdminAuthorizationTests
         {
             var actionAuthorization = controller.GetMethods().SelectMany(method => method.GetCustomAttributes<AuthorizeAttribute>());
             if (controller.Name == "CenterGroupTrainingsController")
-                Assert.Equal(AppRoles.Member, Assert.Single(actionAuthorization).Roles);
+            {
+                Assert.Equal(3, actionAuthorization.Count());
+                Assert.All(actionAuthorization, attribute => Assert.Equal(AppRoles.Member, attribute.Roles));
+            }
             else
                 Assert.Empty(actionAuthorization);
             if (!expected.Contains(controller.Name)) continue;

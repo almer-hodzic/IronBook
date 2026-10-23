@@ -16,6 +16,7 @@ public sealed class CenterGroupTrainingsController : ControllerBase
         _groupTrainingService = groupTrainingService;
     }
 
+    [Authorize(Roles = AppRoles.Member)]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MemberGroupTrainingDto>>> GetGroupTrainings(
         int centerId,
@@ -30,6 +31,7 @@ public sealed class CenterGroupTrainingsController : ControllerBase
         return Ok(trainings);
     }
 
+    [Authorize(Roles = AppRoles.Member)]
     [HttpGet("{groupTrainingId:int}")]
     public async Task<ActionResult<MemberGroupTrainingDto>> GetGroupTraining(
         int centerId,
