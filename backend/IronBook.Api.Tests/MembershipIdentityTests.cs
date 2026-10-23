@@ -224,6 +224,7 @@ public class MembershipIdentityTests
     private sealed class TestAccountContext(int id) : ICurrentAccountContext
     {
         public int? AccountId => id;
+        public Guid? SessionId => null;
         public string? Role => AppRoles.Member;
     }
     private sealed class FailPaymentSave : SaveChangesInterceptor

@@ -161,6 +161,8 @@ public class AdminAuthorizationTests
                 Assert.Equal(3, actionAuthorization.Count());
                 Assert.All(actionAuthorization, attribute => Assert.Equal(AppRoles.Member, attribute.Roles));
             }
+            else if (controller.Name == "AuthController")
+                Assert.Null(Assert.Single(actionAuthorization).Roles);
             else
                 Assert.Empty(actionAuthorization);
             if (!expected.Contains(controller.Name)) continue;

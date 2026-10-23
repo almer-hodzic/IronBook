@@ -189,5 +189,8 @@ public class CurrentTrainerIdentityTests
         Assert.Equal(typeof(CancellationToken), Assert.Single(method.GetParameters()).ParameterType);
     }
 
-    private sealed record AccountContext(int? AccountId, string? Role) : ICurrentAccountContext;
+    private sealed record AccountContext(int? AccountId, string? Role) : ICurrentAccountContext
+    {
+        public Guid? SessionId => null;
+    }
 }

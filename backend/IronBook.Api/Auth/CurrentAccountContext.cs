@@ -17,6 +17,16 @@ public sealed class CurrentAccountContext(IHttpContextAccessor httpContextAccess
         }
     }
 
+    public Guid? SessionId
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+            if (user?.Identity?.IsAuthenticated != true) return null;
+            return Guid.TryParse(user.FindFirst("jti")?.Value, out var id) ? id : null;
+        }
+    }
+
     public string? Role => httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated == true
         ? httpContextAccessor.HttpContext.User.FindFirst("role")?.Value
         : null;
