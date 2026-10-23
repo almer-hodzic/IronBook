@@ -1,5 +1,5 @@
 using IronBook.Application.TrainingReports;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,11 +8,11 @@ namespace IronBook.Infrastructure.TrainingReports;
 public sealed class MemberProgressLogService : IMemberProgressLogService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
     public MemberProgressLogService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
