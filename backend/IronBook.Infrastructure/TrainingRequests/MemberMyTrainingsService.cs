@@ -1,7 +1,7 @@
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,9 +10,9 @@ namespace IronBook.Infrastructure.TrainingRequests;
 public sealed class MemberMyTrainingsService : IMemberMyTrainingsService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
-    public MemberMyTrainingsService(IronBookDbContext dbContext, IDevelopmentMemberResolver memberResolver)
+    public MemberMyTrainingsService(IronBookDbContext dbContext, ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;

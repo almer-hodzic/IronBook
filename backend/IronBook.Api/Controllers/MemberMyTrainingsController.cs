@@ -1,10 +1,13 @@
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Member)]
 [Route("api/member/my-trainings")]
 public sealed class MemberMyTrainingsController : ControllerBase
 {
