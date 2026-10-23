@@ -187,9 +187,9 @@ public class MemberIdentityTests
     }
 
     [Fact]
-    public void Only_Profile_and_Preferences_require_Member_and_use_current_Member_service()
+    public void Migrated_Member_controllers_require_Member_and_Profile_Preferences_use_current_Member_service()
     {
-        string[] expected = ["MemberProfileController", "MemberTrainingPreferencesController"];
+        string[] expected = ["MemberProfileController", "MemberTrainingPreferencesController", "MembershipsController"];
         var controllers = typeof(Program).Assembly.GetTypes().Where(type => typeof(ControllerBase).IsAssignableFrom(type));
         Assert.Equal(expected.Order(), controllers.Where(type => type.GetCustomAttributes<AuthorizeAttribute>()
             .Any(attribute => attribute.Roles == AppRoles.Member)).Select(type => type.Name).Order());

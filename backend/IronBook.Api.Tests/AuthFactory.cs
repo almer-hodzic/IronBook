@@ -4,6 +4,7 @@ using IronBook.Domain.Entities;
 using IronBook.Domain.Security;
 using IronBook.Infrastructure.Auth;
 using IronBook.Infrastructure.Persistence;
+using IronBook.Infrastructure.Memberships;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -40,6 +41,9 @@ public sealed class AuthFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<IronBookDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<IronBookDbContext>>();
             services.AddDbContext<IronBookDbContext>(options => options.UseSqlite(_connection));
+            // Real QR service with a separate ephemeral key, confined to test fixtures.
+            services.AddSingleton<IMembershipAccessTokenService>(new MembershipAccessTokenService(
+                Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));
             var dispatcher = services.Single(descriptor => descriptor.ServiceType == typeof(IHostedService)
                 && descriptor.ImplementationType == typeof(NotificationOutboxDispatcher));
             services.Remove(dispatcher);

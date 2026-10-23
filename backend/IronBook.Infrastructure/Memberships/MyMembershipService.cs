@@ -1,4 +1,5 @@
 using IronBook.Application.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Persistence;
@@ -9,12 +10,12 @@ namespace IronBook.Infrastructure.Memberships;
 public sealed class MyMembershipService : IMyMembershipService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
     private readonly IMembershipAccessTokenService _accessTokenService;
 
     public MyMembershipService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver,
+        ICurrentMemberService memberResolver,
         IMembershipAccessTokenService accessTokenService)
     {
         _dbContext = dbContext;
@@ -27,7 +28,7 @@ public sealed class MyMembershipService : IMyMembershipService
         var member = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken);
         if (member is null)
         {
-            return MyMembershipResult.Missing("Development member was not found.");
+            return MyMembershipResult.Missing("Member profile was not found.");
         }
 
         var utcNow = DateTime.UtcNow;

@@ -1,4 +1,5 @@
 using IronBook.Application.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Persistence;
@@ -9,11 +10,11 @@ namespace IronBook.Infrastructure.Memberships;
 public sealed class MembershipCheckoutService : IMembershipCheckoutService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
     public MembershipCheckoutService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
@@ -29,11 +30,11 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
             return MembershipCheckoutResult.Invalid(errors);
         }
 
-        var member = await _memberResolver.ResolveAsync(request.MemberProfileId, cancellationToken);
+        var member = await _memberResolver.ResolveAsync(cancellationToken);
         if (member is null)
         {
             return MembershipCheckoutResult.Invalid(
-                [new MembershipCheckoutValidationError("MemberProfileId", "Member profile was not found.")]);
+                [new MembershipCheckoutValidationError("Member", "Member profile was not found.")]);
         }
 
         var center = await _dbContext.Centers
