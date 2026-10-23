@@ -1,7 +1,7 @@
 using IronBook.Application.TrainingReports;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +14,11 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
     private const int ExerciseNotesMaxLength = 1000;
 
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentTrainerResolver _trainerResolver;
+    private readonly ICurrentTrainerService _trainerResolver;
 
     public TrainerTrainingReportService(
         IronBookDbContext dbContext,
-        IDevelopmentTrainerResolver trainerResolver)
+        ICurrentTrainerService trainerResolver)
     {
         _dbContext = dbContext;
         _trainerResolver = trainerResolver;
@@ -47,7 +47,7 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
         if (trainer is null)
         {
             return TrainingReportCreateResult.NotFoundResult(
-                "The active development trainer was not found.");
+                "The active trainer was not found.");
         }
 
         var trainingRequest = await _dbContext.TrainingRequests
@@ -55,7 +55,7 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
             .Include(request => request.Center)
             .Include(request => request.MemberProfile)
             .SingleOrDefaultAsync(
-                existing => existing.Id == request.TrainingRequestId,
+                existing => existing.Id == request.TrainingRequestId && existing.TrainerProfileId == trainer.Id,
                 cancellationToken);
 
         if (trainingRequest is null)
@@ -68,12 +68,6 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
         {
             return TrainingReportCreateResult.ConflictResult(
                 "Only approved training requests can have reports.");
-        }
-
-        if (trainingRequest.TrainerProfileId != trainer.Id)
-        {
-            return TrainingReportCreateResult.ConflictResult(
-                "You can only create reports for requests owned by the resolved trainer.");
         }
 
         var existingReport = await _dbContext.TrainingReports

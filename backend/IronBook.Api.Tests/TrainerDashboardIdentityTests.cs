@@ -167,16 +167,16 @@ public class TrainerDashboardIdentityTests
     }
 
     [Fact]
-    public void Only_Dashboard_and_details_migrate_while_report_creation_keeps_previous_identity_path()
+    public void Trainer_feature_services_require_authenticated_Trainer_identity()
     {
         var parameters = Assert.Single(typeof(TrainerDashboardService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentTrainerService));
         Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
         Assert.Equal(AppRoles.Trainer, Assert.Single(typeof(TrainerDashboardController).GetCustomAttributes<AuthorizeAttribute>()).Roles);
         var reportParameters = Assert.Single(typeof(TrainerTrainingReportService).GetConstructors()).GetParameters();
-        Assert.Contains(reportParameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
-        Assert.DoesNotContain(reportParameters, parameter => parameter.ParameterType == typeof(ICurrentTrainerService));
-        Assert.Empty(typeof(TrainerTrainingReportsController).GetCustomAttributes<AuthorizeAttribute>());
+        Assert.DoesNotContain(reportParameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
+        Assert.Contains(reportParameters, parameter => parameter.ParameterType == typeof(ICurrentTrainerService));
+        Assert.Equal(AppRoles.Trainer, Assert.Single(typeof(TrainerTrainingReportsController).GetCustomAttributes<AuthorizeAttribute>()).Roles);
         Assert.Empty(typeof(TrainerTrainingReportsController).GetMethods().SelectMany(method => method.GetCustomAttributes<AuthorizeAttribute>()));
     }
 
