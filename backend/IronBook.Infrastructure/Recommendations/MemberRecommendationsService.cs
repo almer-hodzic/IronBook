@@ -1,6 +1,6 @@
 using IronBook.Application.Recommendations;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +9,11 @@ namespace IronBook.Infrastructure.Recommendations;
 public sealed class MemberRecommendationsService : IMemberRecommendationsService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
     public MemberRecommendationsService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;

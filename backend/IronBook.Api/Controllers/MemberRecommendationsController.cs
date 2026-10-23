@@ -1,9 +1,12 @@
 using IronBook.Application.Recommendations;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Member)]
 [Route("api/member/centers/{centerId:int}/recommendations")]
 public sealed class MemberRecommendationsController : ControllerBase
 {
