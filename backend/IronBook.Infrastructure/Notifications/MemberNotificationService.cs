@@ -1,5 +1,5 @@
 using IronBook.Application.Notifications;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,9 +8,9 @@ namespace IronBook.Infrastructure.Notifications;
 public sealed class MemberNotificationService : IMemberNotificationService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
-    public MemberNotificationService(IronBookDbContext dbContext, IDevelopmentMemberResolver memberResolver)
+    public MemberNotificationService(IronBookDbContext dbContext, ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
