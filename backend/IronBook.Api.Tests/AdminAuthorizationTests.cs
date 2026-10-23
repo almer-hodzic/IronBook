@@ -155,7 +155,11 @@ public class AdminAuthorizationTests
             .Any(attribute => attribute.Roles == AppRoles.Admin)).Select(type => type.Name).Order());
         foreach (var controller in controllers)
         {
-            Assert.Empty(controller.GetMethods().SelectMany(method => method.GetCustomAttributes<AuthorizeAttribute>()));
+            var actionAuthorization = controller.GetMethods().SelectMany(method => method.GetCustomAttributes<AuthorizeAttribute>());
+            if (controller.Name == "CenterGroupTrainingsController")
+                Assert.Equal(AppRoles.Member, Assert.Single(actionAuthorization).Roles);
+            else
+                Assert.Empty(actionAuthorization);
             if (!expected.Contains(controller.Name)) continue;
             Assert.Equal(AppRoles.Admin, Assert.Single(controller.GetCustomAttributes<AuthorizeAttribute>()).Roles);
             Assert.Empty(controller.GetCustomAttributes<AllowAnonymousAttribute>());

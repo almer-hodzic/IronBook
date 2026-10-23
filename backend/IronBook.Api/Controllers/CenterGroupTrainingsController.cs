@@ -1,5 +1,7 @@
 using IronBook.Application.GroupTrainings;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
@@ -42,6 +44,7 @@ public sealed class CenterGroupTrainingsController : ControllerBase
         return training is null ? NotFound() : Ok(training);
     }
 
+    [Authorize(Roles = AppRoles.Member)]
     [HttpPost("{groupTrainingId:int}/enroll")]
     public async Task<ActionResult<GroupTrainingEnrollmentDto>> Enroll(
         int centerId,

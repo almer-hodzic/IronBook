@@ -1,4 +1,5 @@
 using IronBook.Application.GroupTrainings;
+using IronBook.Application.Auth;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Memberships;
@@ -11,13 +12,16 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
 {
     private readonly IronBookDbContext _dbContext;
     private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _currentMemberService;
 
     public MemberGroupTrainingService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        IDevelopmentMemberResolver memberResolver,
+        ICurrentMemberService currentMemberService)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
+        _currentMemberService = currentMemberService;
     }
 
     public async Task<IReadOnlyList<MemberGroupTrainingDto>> GetAvailableGroupTrainingsForCenterAsync(
@@ -72,12 +76,12 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
                 "Center and group training IDs must be positive.");
         }
 
-        var member = await _memberResolver.ResolveAsync(null, cancellationToken);
+        var member = await _currentMemberService.ResolveAsync(cancellationToken);
         if (member is null)
         {
             return GroupTrainingEnrollmentResult.Fail(
                 GroupTrainingEnrollmentFailureKind.NotFound,
-                "Development member profile was not found.");
+                "Member profile was not found.");
         }
 
         var training = await _dbContext.GroupTrainings
