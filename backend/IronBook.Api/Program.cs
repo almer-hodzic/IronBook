@@ -51,6 +51,7 @@ builder.Services.AddScoped<IAuthSessionValidator, AuthSessionValidator>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentAccountContext, CurrentAccountContext>();
 builder.Services.AddScoped<ICurrentMemberService, CurrentMemberService>();
+builder.Services.AddScoped<ICurrentTrainerService, CurrentTrainerService>();
 builder.Services.AddIronBookJwtAuthentication();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
