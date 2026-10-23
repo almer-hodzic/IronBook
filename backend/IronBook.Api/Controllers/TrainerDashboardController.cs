@@ -1,9 +1,12 @@
 using IronBook.Application.TrainingRequests;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Trainer)]
 [Route("api/trainer")]
 public sealed class TrainerDashboardController : ControllerBase
 {

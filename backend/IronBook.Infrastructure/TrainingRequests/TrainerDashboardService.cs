@@ -1,6 +1,6 @@
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +9,11 @@ namespace IronBook.Infrastructure.TrainingRequests;
 public sealed class TrainerDashboardService : ITrainerDashboardService
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentTrainerResolver _trainerResolver;
+    private readonly ICurrentTrainerService _trainerResolver;
 
     public TrainerDashboardService(
         IronBookDbContext dbContext,
-        IDevelopmentTrainerResolver trainerResolver)
+        ICurrentTrainerService trainerResolver)
     {
         _dbContext = dbContext;
         _trainerResolver = trainerResolver;
