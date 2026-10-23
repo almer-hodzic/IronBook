@@ -2,7 +2,7 @@ using System.Globalization;
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
-using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,11 +25,11 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
     ];
 
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly ICurrentMemberService _memberResolver;
 
     public MemberTrainingRequestService(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver)
+        ICurrentMemberService memberResolver)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
@@ -98,11 +98,11 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
             return TrainingRequestCreateResult.Invalid(errors);
         }
 
-        var member = await _memberResolver.ResolveAsync(request.MemberProfileId, cancellationToken);
+        var member = await _memberResolver.ResolveAsync(cancellationToken);
         if (member is null)
         {
             return TrainingRequestCreateResult.Invalid(
-                [new TrainingRequestValidationError("MemberProfileId", "Member profile was not found.")]);
+                [new TrainingRequestValidationError("Member", "Member profile was not found.")]);
         }
 
         if (!await TrainerIsAvailableForCenterAsync(centerId, trainerId, cancellationToken))
