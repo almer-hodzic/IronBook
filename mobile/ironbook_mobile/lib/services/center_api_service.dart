@@ -740,7 +740,7 @@ class CenterApiService {
       'trainingDate': trainingDate.toUtc().toIso8601String(),
       'notes': notes,
       'exercises': exercises,
-    });
+    }, authenticated: true);
 
     if (response.statusCode == 201) {
       try {
@@ -755,10 +755,14 @@ class CenterApiService {
         response.statusCode == 409) {
       throw CenterApiException(
         _readProblemMessage(response.body, 'Training report was rejected.'),
+        statusCode: response.statusCode,
       );
     }
 
-    throw const CenterApiException('Training report could not be saved.');
+    throw CenterApiException(
+      'Training report could not be saved.',
+      statusCode: response.statusCode,
+    );
   }
 
   Future<MembershipCheckoutResult> checkoutMembership({

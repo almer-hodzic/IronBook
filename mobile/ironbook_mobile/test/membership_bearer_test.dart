@@ -390,14 +390,17 @@ void main() {
     },
   );
 
-  test('Centers and Trainer report POST retain non-Bearer behavior', () async {
+  test('Centers stay public while Trainer report POST uses Bearer', () async {
     final tokens = FakeAccessTokenProvider();
     final paths = <String>[];
     final api = CenterApiService(
       apiBaseUrl: 'http://localhost',
       accessTokenProvider: tokens,
       client: MockClient((request) async {
-        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(
+          request.headers['Authorization'],
+          request.method == 'GET' ? isNull : 'Bearer fixture-access-token',
+        );
         paths.add(request.url.path);
         return request.method == 'GET'
             ? http.Response('[]', 200)
@@ -413,7 +416,7 @@ void main() {
       ),
       throwsA(isA<CenterApiException>()),
     );
-    expect(tokens.reads, 0);
+    expect(tokens.reads, 1);
     expect(paths, ['/api/centers', '/api/trainer/training-reports']);
   });
 }

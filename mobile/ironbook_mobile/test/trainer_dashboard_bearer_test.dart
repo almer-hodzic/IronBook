@@ -201,14 +201,14 @@ void main() {
     },
   );
 
-  test('Training Report remains non-Bearer with unchanged payload; Member call still uses Bearer', () async {
+  test('Training Report now uses Bearer with unchanged payload; Member call still uses Bearer', () async {
     final tokens = FakeAccessTokenProvider();
     var requests = 0;
     final api = apiFor((request) async {
       requests++;
       if (request.url.path == '/api/trainer/training-reports') {
         expect(request.method, 'POST');
-        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(request.headers['Authorization'], 'Bearer fixture-access-token');
         expect(jsonDecode(request.body), {
           'trainingRequestId': 8,
           'trainingDate': '2030-01-15T10:00:00.000Z',
@@ -230,9 +230,9 @@ void main() {
       ),
       throwsA(isA<CenterApiException>()),
     );
-    expect(tokens.reads, 0);
-    expect(await api.getMemberNotifications(), isEmpty);
     expect(tokens.reads, 1);
+    expect(await api.getMemberNotifications(), isEmpty);
+    expect(tokens.reads, 2);
     expect(requests, 2);
   });
 }

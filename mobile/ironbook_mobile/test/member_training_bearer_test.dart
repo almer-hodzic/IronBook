@@ -317,28 +317,25 @@ void main() {
     },
   );
 
-  test(
-    'Training Report creation still makes requests without Bearer',
-    () async {
-      final tokens = FakeAccessTokenProvider(null);
-      var requests = 0;
-      final api = apiFor((request) async {
-        requests++;
-        expect(request.headers.containsKey('Authorization'), isFalse);
-        return http.Response('', 404);
-      }, tokens);
-      final unmigrated = <Future<Object?> Function()>[
-        () => api.createTrainingReport(
-          trainingRequestId: 5,
-          trainingDate: DateTime.utc(2030),
-          exercises: [],
-        ),
-      ];
-      for (final call in unmigrated) {
-        await expectLater(call(), throwsA(isA<CenterApiException>()));
-      }
-      expect(requests, unmigrated.length);
-      expect(tokens.reads, 0);
-    },
-  );
+  test('Training Report creation uses Bearer', () async {
+    final tokens = FakeAccessTokenProvider();
+    var requests = 0;
+    final api = apiFor((request) async {
+      requests++;
+      expect(request.headers['Authorization'], 'Bearer fixture-access-token');
+      return http.Response('', 404);
+    }, tokens);
+    final unmigrated = <Future<Object?> Function()>[
+      () => api.createTrainingReport(
+        trainingRequestId: 5,
+        trainingDate: DateTime.utc(2030),
+        exercises: [],
+      ),
+    ];
+    for (final call in unmigrated) {
+      await expectLater(call(), throwsA(isA<CenterApiException>()));
+    }
+    expect(requests, unmigrated.length);
+    expect(tokens.reads, 1);
+  });
 }
