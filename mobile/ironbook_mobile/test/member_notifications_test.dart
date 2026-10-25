@@ -11,6 +11,8 @@ import 'package:ironbook_mobile/screens/member_notifications_screen.dart';
 import 'package:ironbook_mobile/services/center_api_service.dart';
 import 'package:ironbook_mobile/theme/ironbook_mobile_theme.dart';
 
+import 'support/token_provider.dart';
+
 Map<String, Object?> notification({
   int id = 1,
   bool read = false,
@@ -24,8 +26,11 @@ Map<String, Object?> notification({
   'isRead': read,
 };
 
-CenterApiService apiFor(http.Client client) =>
-    CenterApiService(client: client, apiBaseUrl: 'http://localhost');
+CenterApiService apiFor(http.Client client) => CenterApiService(
+  client: client,
+  accessTokenProvider: FakeAccessTokenProvider(),
+  apiBaseUrl: 'http://localhost',
+);
 
 Future<void> showScreen(WidgetTester tester, Widget screen) async {
   await tester.binding.setSurfaceSize(const Size(500, 1100));

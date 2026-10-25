@@ -60,9 +60,14 @@ class AuthFixture {
     authApiService: api,
     centerApiService: CenterApiService(
       apiBaseUrl: 'http://localhost:5100',
+      accessTokenProvider: api.sessions,
       client: MockClient((request) async {
-        // Feature clients intentionally remain unauthenticated in this phase.
-        if (request.headers.containsKey('Authorization')) {
+        if (request.url.path == '/api/member/notifications') {
+          if (request.headers['Authorization'] !=
+              'Bearer fixture-access-token') {
+            throw StateError('Missing notification authentication');
+          }
+        } else if (request.headers.containsKey('Authorization')) {
           throw StateError('Unexpected feature auth migration');
         }
         return http.Response('[]', 200);

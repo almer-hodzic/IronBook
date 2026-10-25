@@ -346,7 +346,7 @@ void main() {
   });
 
   test(
-    'other Member and Trainer calls neither read token nor add Bearer',
+    'public Centers and Trainer calls neither read token nor add Bearer',
     () async {
       final tokens = FakeAccessTokenProvider();
       final requests = <String>[];
@@ -360,12 +360,10 @@ void main() {
         }),
       );
       await api.getCenters();
-      await api.getMemberNotifications();
       await api.getTrainerDashboardRequests();
       expect(tokens.reads, 0);
       expect(requests, [
         '/api/centers',
-        '/api/member/notifications',
         '/api/trainer/dashboard/coaching-requests',
       ]);
     },

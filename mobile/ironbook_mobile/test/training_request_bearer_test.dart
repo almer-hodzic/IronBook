@@ -371,7 +371,7 @@ void main() {
     );
   });
 
-  test('Notifications and Trainer Dashboard remain non-Bearer', () async {
+  test('Centers and Trainer Dashboard remain non-Bearer', () async {
     final tokens = FakeAccessTokenProvider();
     final paths = <String>[];
     final api = CenterApiService(
@@ -383,12 +383,9 @@ void main() {
         return http.Response('[]', 200);
       }),
     );
-    await api.getMemberNotifications();
+    await api.getCenters();
     await api.getTrainerDashboardRequests();
     expect(tokens.reads, 0);
-    expect(paths, [
-      '/api/member/notifications',
-      '/api/trainer/dashboard/coaching-requests',
-    ]);
+    expect(paths, ['/api/centers', '/api/trainer/dashboard/coaching-requests']);
   });
 }

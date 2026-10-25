@@ -390,36 +390,30 @@ void main() {
     },
   );
 
-  test(
-    'Notifications and Trainer report POST retain non-Bearer behavior',
-    () async {
-      final tokens = FakeAccessTokenProvider();
-      final paths = <String>[];
-      final api = CenterApiService(
-        apiBaseUrl: 'http://localhost',
-        accessTokenProvider: tokens,
-        client: MockClient((request) async {
-          expect(request.headers.containsKey('Authorization'), isFalse);
-          paths.add(request.url.path);
-          return request.method == 'GET'
-              ? http.Response('[]', 200)
-              : http.Response('{}', 400);
-        }),
-      );
-      await api.getMemberNotifications();
-      await expectLater(
-        api.createTrainingReport(
-          trainingRequestId: 8,
-          trainingDate: DateTime.utc(2030),
-          exercises: [],
-        ),
-        throwsA(isA<CenterApiException>()),
-      );
-      expect(tokens.reads, 0);
-      expect(paths, [
-        '/api/member/notifications',
-        '/api/trainer/training-reports',
-      ]);
-    },
-  );
+  test('Centers and Trainer report POST retain non-Bearer behavior', () async {
+    final tokens = FakeAccessTokenProvider();
+    final paths = <String>[];
+    final api = CenterApiService(
+      apiBaseUrl: 'http://localhost',
+      accessTokenProvider: tokens,
+      client: MockClient((request) async {
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        paths.add(request.url.path);
+        return request.method == 'GET'
+            ? http.Response('[]', 200)
+            : http.Response('{}', 400);
+      }),
+    );
+    await api.getCenters();
+    await expectLater(
+      api.createTrainingReport(
+        trainingRequestId: 8,
+        trainingDate: DateTime.utc(2030),
+        exercises: [],
+      ),
+      throwsA(isA<CenterApiException>()),
+    );
+    expect(tokens.reads, 0);
+    expect(paths, ['/api/centers', '/api/trainer/training-reports']);
+  });
 }

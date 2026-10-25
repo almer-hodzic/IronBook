@@ -155,7 +155,10 @@ class CenterApiService {
   }
 
   Future<List<MemberNotification>> getMemberNotifications() async {
-    final response = await _get('/api/member/notifications');
+    final response = await _get(
+      '/api/member/notifications',
+      authenticated: true,
+    );
     if (response.statusCode != 200) {
       throw const CenterApiException('Notifications could not be loaded.');
     }
@@ -175,7 +178,11 @@ class CenterApiService {
   }
 
   Future<MemberNotification> markNotificationRead(int id) async {
-    final response = await _put('/api/member/notifications/$id/read', {});
+    final response = await _put(
+      '/api/member/notifications/$id/read',
+      {},
+      authenticated: true,
+    );
     if (response.statusCode == 404) {
       throw const CenterApiException(
         'This notification is no longer available. Refresh the list.',
@@ -206,6 +213,7 @@ class CenterApiService {
   ) async {
     final response = await _get(
       '/api/member/centers/$centerId/recommendations',
+      authenticated: true,
     );
     if (response.statusCode == 404) {
       throw const CenterApiException(
@@ -448,7 +456,7 @@ class CenterApiService {
     final path = query == null || query.isEmpty
         ? '/api/centers/$centerId/group-trainings'
         : '/api/centers/$centerId/group-trainings?search=${Uri.encodeQueryComponent(query)}';
-    final response = await _get(path);
+    final response = await _get(path, authenticated: true);
 
     if (response.statusCode != 200) {
       throw const CenterApiException('Group trainings could not be loaded.');
@@ -476,6 +484,7 @@ class CenterApiService {
   ) async {
     final response = await _get(
       '/api/centers/$centerId/group-trainings/$groupTrainingId',
+      authenticated: true,
     );
 
     if (response.statusCode == 404) {
@@ -504,6 +513,7 @@ class CenterApiService {
     final response = await _post(
       '/api/centers/$centerId/group-trainings/$groupTrainingId/enroll',
       {},
+      authenticated: true,
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {

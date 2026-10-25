@@ -10,6 +10,8 @@ import 'package:ironbook_mobile/screens/trainer_details_screen.dart';
 import 'package:ironbook_mobile/services/center_api_service.dart';
 import 'package:ironbook_mobile/theme/ironbook_mobile_theme.dart';
 
+import 'support/token_provider.dart';
+
 Map<String, Object?> responseData({
   int centerId = 7,
   bool empty = false,
@@ -79,6 +81,7 @@ void main() {
     addTearDown(client.close);
     final api = CenterApiService(
       client: client,
+      accessTokenProvider: FakeAccessTokenProvider(),
       apiBaseUrl: 'http://localhost',
     );
     final data = await api.getRecommendationsForCenter(7);
@@ -106,7 +109,11 @@ void main() {
     addTearDown(client.close);
     await showScreen(
       tester,
-      CenterApiService(client: client, apiBaseUrl: 'http://localhost'),
+      CenterApiService(
+        client: client,
+        accessTokenProvider: FakeAccessTokenProvider(),
+        apiBaseUrl: 'http://localhost',
+      ),
     );
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.pumpAndSettle();
@@ -138,7 +145,11 @@ void main() {
       addTearDown(client.close);
       await showScreen(
         tester,
-        CenterApiService(client: client, apiBaseUrl: 'http://localhost'),
+        CenterApiService(
+          client: client,
+          accessTokenProvider: FakeAccessTokenProvider(),
+          apiBaseUrl: 'http://localhost',
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Recommendation score: 0.750'), findsOneWidget);
@@ -181,6 +192,7 @@ void main() {
     addTearDown(client.close);
     final api = CenterApiService(
       client: client,
+      accessTokenProvider: FakeAccessTokenProvider(),
       apiBaseUrl: 'http://localhost',
     );
     await showScreen(tester, api);

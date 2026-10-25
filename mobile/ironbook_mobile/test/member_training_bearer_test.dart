@@ -317,36 +317,27 @@ void main() {
     },
   );
 
-  test(
-    'unmigrated Member and Trainer clients still make requests without Bearer',
-    () async {
-      final tokens = FakeAccessTokenProvider(null);
-      var requests = 0;
-      final api = apiFor((request) async {
-        requests++;
-        expect(request.headers.containsKey('Authorization'), isFalse);
-        return http.Response('', 404);
-      }, tokens);
-      final unmigrated = <Future<Object?> Function()>[
-        () => api.getRecommendationsForCenter(3),
-        () => api.getMemberNotifications(),
-        () => api.markNotificationRead(5),
-        () => api.getGroupTrainingsForCenter(3),
-        () => api.getGroupTrainingForCenter(3, 5),
-        () => api.enrollGroupTraining(centerId: 3, groupTrainingId: 5),
-        () => api.getTrainerDashboardRequests(),
-        () => api.getTrainerClientDetails(5),
-        () => api.createTrainingReport(
-          trainingRequestId: 5,
-          trainingDate: DateTime.utc(2030),
-          exercises: [],
-        ),
-      ];
-      for (final call in unmigrated) {
-        await expectLater(call(), throwsA(isA<CenterApiException>()));
-      }
-      expect(requests, unmigrated.length);
-      expect(tokens.reads, 0);
-    },
-  );
+  test('Trainer clients still make requests without Bearer', () async {
+    final tokens = FakeAccessTokenProvider(null);
+    var requests = 0;
+    final api = apiFor((request) async {
+      requests++;
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      return http.Response('', 404);
+    }, tokens);
+    final unmigrated = <Future<Object?> Function()>[
+      () => api.getTrainerDashboardRequests(),
+      () => api.getTrainerClientDetails(5),
+      () => api.createTrainingReport(
+        trainingRequestId: 5,
+        trainingDate: DateTime.utc(2030),
+        exercises: [],
+      ),
+    ];
+    for (final call in unmigrated) {
+      await expectLater(call(), throwsA(isA<CenterApiException>()));
+    }
+    expect(requests, unmigrated.length);
+    expect(tokens.reads, 0);
+  });
 }
