@@ -743,7 +743,7 @@ class CenterApiService {
       'centerId': centerId,
       'membershipPlanId': membershipPlanId,
       'paymentMethod': paymentMethod.apiValue,
-    });
+    }, authenticated: true);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       try {
@@ -767,7 +767,7 @@ class CenterApiService {
   }
 
   Future<MyMembership?> getMyMembership() async {
-    final response = await _get('/api/memberships/my');
+    final response = await _get('/api/memberships/my', authenticated: true);
 
     if (response.statusCode == 404) {
       return null;
@@ -858,7 +858,11 @@ class CenterApiService {
     return response;
   }
 
-  Future<http.Response> _post(String path, Map<String, Object?> body) async {
+  Future<http.Response> _post(
+    String path,
+    Map<String, Object?> body, {
+    bool authenticated = false,
+  }) async {
     final baseUrl = _apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
       throw const CenterApiException('API_BASE_URL is not configured.');
@@ -867,13 +871,19 @@ class CenterApiService {
     final uri = Uri.parse(baseUrl).resolve(path);
 
     try {
-      return await _client
+      final response = await (authenticated ? _authenticatedClient : _client)
           .post(
             uri,
             headers: const {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
+      return _checkAuthentication(response, authenticated);
+    } on AuthenticationRequiredException {
+      throw const CenterApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const CenterApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {
