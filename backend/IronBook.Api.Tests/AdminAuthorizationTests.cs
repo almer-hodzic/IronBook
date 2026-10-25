@@ -146,10 +146,10 @@ public class AdminAuthorizationTests
     }
 
     [Fact]
-    public async Task Seven_Admin_controllers_require_Admin_and_public_routes_stay_public()
+    public async Task Eight_Admin_controllers_require_Admin_and_public_routes_stay_public()
     {
         string[] expected = ["AdminCentersController", "AdminCoachingRequestsController", "AdminGroupTrainingsController",
-            "AdminMembershipPlansController", "AdminPaymentsController", "AdminReportsController", "AdminTrainersController"];
+            "AdminMembershipPlansController", "AdminPaymentsController", "AdminReportsController", "AdminTrainersController", "CheckInsController"];
         var controllers = typeof(Program).Assembly.GetTypes().Where(type => typeof(ControllerBase).IsAssignableFrom(type)).ToArray();
         Assert.Equal(expected.Order(), controllers.Where(type => type.GetCustomAttributes<AuthorizeAttribute>()
             .Any(attribute => attribute.Roles == AppRoles.Admin)).Select(type => type.Name).Order());

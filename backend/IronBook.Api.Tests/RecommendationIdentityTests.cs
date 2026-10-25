@@ -141,7 +141,7 @@ public class RecommendationIdentityTests
     {
         var parameters = Assert.Single(typeof(MemberRecommendationsService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentMemberService));
-        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentMemberResolver));
+        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentMemberResolver");
     }
 
     private static void AssertStrengthPreferences(MemberRecommendationsDto result, Fixture fixture)
@@ -271,6 +271,9 @@ public class RecommendationIdentityTests
             builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
             {
+                services.AddSingleton<IronBook.Infrastructure.Memberships.IMembershipAccessTokenService>(
+                    new IronBook.Infrastructure.Memberships.MembershipAccessTokenService(
+                        Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));
                 services.RemoveAll<DbContextOptions<IronBookDbContext>>();
                 services.RemoveAll<IDbContextOptionsConfiguration<IronBookDbContext>>();
                 services.AddDbContext<IronBookDbContext>(options => options.UseSqlServer(_connectionString));

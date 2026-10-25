@@ -174,7 +174,7 @@ public class MyTrainingsIdentityTests
     {
         var parameters = Assert.Single(typeof(MemberMyTrainingsService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentMemberService));
-        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentMemberResolver));
+        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentMemberResolver");
     }
 
     private static string Snapshot(TrainingRequest row) => JsonSerializer.Serialize(new

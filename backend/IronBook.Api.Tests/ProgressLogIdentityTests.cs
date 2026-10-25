@@ -147,7 +147,7 @@ public class ProgressLogIdentityTests
     {
         var parameters = Assert.Single(typeof(MemberProgressLogService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentMemberService));
-        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentMemberResolver));
+        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentMemberResolver");
     }
 
     private static async Task Authenticate(HttpClient client, string username)

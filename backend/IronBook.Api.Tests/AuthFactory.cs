@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 
 namespace IronBook.Api.Tests;
 
@@ -24,8 +25,13 @@ public sealed class AuthFactory : WebApplicationFactory<Program>
     public const string Issuer = "IronBookAuthTests";
     public const string Audience = "IronBookAuthTestClients";
 
-    public AuthFactory()
+    private readonly bool _useConfiguredQr;
+    private readonly string? _qrKey;
+
+    public AuthFactory(bool useConfiguredQr = false, string? qrKey = null)
     {
+        _useConfiguredQr = useConfiguredQr;
+        _qrKey = qrKey;
         _connection.Open();
         _connection.CreateCollation("Latin1_General_100_CI_AS", (left, right) =>
             string.Compare(left, right, StringComparison.OrdinalIgnoreCase));
@@ -35,14 +41,17 @@ public sealed class AuthFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(_useConfiguredQr ? "Production" : "Testing");
+        if (_useConfiguredQr)
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["QrAccess:SigningKey"] = _qrKey ?? string.Empty }));
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<IronBookDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<IronBookDbContext>>();
             services.AddDbContext<IronBookDbContext>(options => options.UseSqlite(_connection));
             // Real QR service with a separate ephemeral key, confined to test fixtures.
-            services.AddSingleton<IMembershipAccessTokenService>(new MembershipAccessTokenService(
+            if (!_useConfiguredQr) services.AddSingleton<IMembershipAccessTokenService>(new MembershipAccessTokenService(
                 Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));
             var dispatcher = services.Single(descriptor => descriptor.ServiceType == typeof(IHostedService)
                 && descriptor.ImplementationType == typeof(NotificationOutboxDispatcher));

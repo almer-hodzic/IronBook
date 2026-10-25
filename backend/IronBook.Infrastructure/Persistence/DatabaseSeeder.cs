@@ -1,6 +1,6 @@
 using IronBook.Domain.Entities;
 using IronBook.Domain.Security;
-using IronBook.Infrastructure.Memberships;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,16 +9,16 @@ namespace IronBook.Infrastructure.Persistence;
 public sealed class DatabaseSeeder
 {
     private readonly IronBookDbContext _dbContext;
-    private readonly IDevelopmentMemberResolver _memberResolver;
+    private readonly IConfiguration _configuration;
     private readonly IPasswordHasher<Account> _passwordHasher;
 
     public DatabaseSeeder(
         IronBookDbContext dbContext,
-        IDevelopmentMemberResolver memberResolver,
+        IConfiguration configuration,
         IPasswordHasher<Account> passwordHasher)
     {
         _dbContext = dbContext;
-        _memberResolver = memberResolver;
+        _configuration = configuration;
         _passwordHasher = passwordHasher;
     }
 
@@ -114,7 +114,20 @@ public sealed class DatabaseSeeder
     {
         const string email = "member@ironbook.local";
 
-        var existingMember = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken, includeInactive: true);
+        var configuredId = _configuration["DevelopmentMember:MemberProfileId"];
+        MemberProfile? existingMember;
+        var query = _dbContext.MemberProfiles.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(configuredId))
+        {
+            if (!int.TryParse(configuredId, out var memberId) || memberId <= 0)
+                throw new InvalidOperationException("DevelopmentMember:MemberProfileId must be a positive member ID.");
+            existingMember = await query.SingleOrDefaultAsync(member => member.Id == memberId, cancellationToken)
+                ?? throw new InvalidOperationException("The configured development member does not exist.");
+        }
+        else
+        {
+            existingMember = await query.SingleOrDefaultAsync(member => member.Email == email, cancellationToken);
+        }
 
         if (existingMember is null)
         {

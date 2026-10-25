@@ -184,7 +184,7 @@ public class CurrentTrainerIdentityTests
     {
         var parameters = Assert.Single(typeof(CurrentTrainerService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentAccountContext));
-        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
+        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentTrainerResolver");
         var method = typeof(ICurrentTrainerService).GetMethod("ResolveAsync")!;
         Assert.Equal(typeof(CancellationToken), Assert.Single(method.GetParameters()).ParameterType);
     }

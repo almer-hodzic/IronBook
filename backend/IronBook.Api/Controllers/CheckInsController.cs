@@ -1,9 +1,12 @@
 using IronBook.Application.CheckIns;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using IronBook.Domain.Security;
 
 namespace IronBook.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Admin)]
 [Route("api/check-ins")]
 public sealed class CheckInsController : ControllerBase
 {

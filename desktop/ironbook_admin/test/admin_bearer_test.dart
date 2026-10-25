@@ -505,14 +505,15 @@ void main() {
     });
   }
 
-  test('confirmed-public Check-In remains usable without Bearer and preserves QR payload', () async {
+  test('Admin Check-In sends Bearer and preserves QR payload', () async {
     var sent = 0;
     final api = AdminCheckInApiService(
+      accessTokenProvider: FakeAccessTokenProvider(),
       client: MockClient((request) async {
         sent++;
         expect(request.method, 'POST');
         expect(request.url.path, '/api/check-ins/validate');
-        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(request.headers['Authorization'], 'Bearer fixture-access-token');
         expect(jsonDecode(request.body), {
           'qrAccessToken': 'fixture-qr-token',
           'centerId': 3,

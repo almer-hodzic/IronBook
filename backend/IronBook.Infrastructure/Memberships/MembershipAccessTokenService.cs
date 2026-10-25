@@ -18,9 +18,12 @@ public sealed class MembershipAccessTokenService : IMembershipAccessTokenService
 
     public MembershipAccessTokenService(string signingKey)
     {
-        if (string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32)
+        string[] placeholders = ["replace", "change_this", "change_me", "changeme", "example", "default", "secret", "password", "your_", "<", ">"];
+        if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32
+            || signingKey.Distinct().Count() <= 1
+            || placeholders.Any(value => signingKey.Contains(value, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new InvalidOperationException("QrAccess:SigningKey must be configured and at least 32 characters long.");
+            throw new InvalidOperationException("QrAccess:SigningKey must be explicitly configured with at least 32 UTF-8 bytes and cannot be a default/example key.");
         }
 
         _signingKey = Encoding.UTF8.GetBytes(signingKey);

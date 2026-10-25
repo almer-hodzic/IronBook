@@ -40,7 +40,9 @@ class _IronBookAdminAppState extends State<IronBookAdminApp> {
       centerApiService: AdminCenterApiService(
         accessTokenProvider: _api.sessions,
       ),
-      checkInApiService: AdminCheckInApiService(),
+      checkInApiService: AdminCheckInApiService(
+        accessTokenProvider: _api.sessions,
+      ),
       coachingRequestApiService: AdminCoachingRequestApiService(
         accessTokenProvider: _api.sessions,
       ),

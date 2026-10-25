@@ -79,8 +79,6 @@ builder.Services.AddScoped<IAdminReportService, AdminReportService>();
 builder.Services.AddScoped<IAdminPaymentService, AdminPaymentService>();
 builder.Services.AddSingleton<RabbitMqNotificationPublisher>();
 builder.Services.AddHostedService<NotificationOutboxDispatcher>();
-builder.Services.AddScoped<IDevelopmentMemberResolver, DevelopmentMemberResolver>();
-builder.Services.AddScoped<IDevelopmentTrainerResolver, DevelopmentTrainerResolver>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 {
     var signingKey = builder.Configuration["QrAccess:SigningKey"];
@@ -96,6 +94,9 @@ var app = builder.Build();
 
 // Fail on invalid JWT configuration before running development seed/database work.
 _ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<JwtOptions>>().Value;
+
+// Validate QR configuration before any development seed/database work.
+_ = app.Services.GetRequiredService<IMembershipAccessTokenService>();
 
 if (app.Environment.IsDevelopment())
 {

@@ -171,10 +171,10 @@ public class TrainerDashboardIdentityTests
     {
         var parameters = Assert.Single(typeof(TrainerDashboardService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentTrainerService));
-        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
+        Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentTrainerResolver");
         Assert.Equal(AppRoles.Trainer, Assert.Single(typeof(TrainerDashboardController).GetCustomAttributes<AuthorizeAttribute>()).Roles);
         var reportParameters = Assert.Single(typeof(TrainerTrainingReportService).GetConstructors()).GetParameters();
-        Assert.DoesNotContain(reportParameters, parameter => parameter.ParameterType == typeof(IDevelopmentTrainerResolver));
+        Assert.DoesNotContain(reportParameters, parameter => parameter.ParameterType.Name == "IDevelopmentTrainerResolver");
         Assert.Contains(reportParameters, parameter => parameter.ParameterType == typeof(ICurrentTrainerService));
         Assert.Equal(AppRoles.Trainer, Assert.Single(typeof(TrainerTrainingReportsController).GetCustomAttributes<AuthorizeAttribute>()).Roles);
         Assert.Empty(typeof(TrainerTrainingReportsController).GetMethods().SelectMany(method => method.GetCustomAttributes<AuthorizeAttribute>()));

@@ -55,8 +55,8 @@ services:
       RabbitMQ__Password: ${RabbitMQ__Password:-change_this_rabbit_password}
       Jwt__Issuer: ${Jwt__Issuer:-IronBook}
       Jwt__Audience: ${Jwt__Audience:-IronBookClients}
-      Jwt__SigningKey: ${Jwt__SigningKey:-replace_with_a_long_local_development_key}
-      QrAccess__SigningKey: ${QrAccess__SigningKey:-replace_with_long_local_qr_access_signing_key_32_chars_minimum}
+      Jwt__SigningKey: ${Jwt__SigningKey:?Set a private JWT signing key}
+      QrAccess__SigningKey: ${QrAccess__SigningKey:?Set a private QR signing key}
     ports:
       - "5000:8080"
     depends_on:

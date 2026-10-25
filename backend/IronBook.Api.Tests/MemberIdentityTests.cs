@@ -197,7 +197,7 @@ public class MemberIdentityTests
         {
             var parameters = Assert.Single(service.GetConstructors()).GetParameters();
             Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentMemberService));
-            Assert.DoesNotContain(parameters, parameter => parameter.ParameterType == typeof(IDevelopmentMemberResolver));
+            Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentMemberResolver");
         }
     }
 
