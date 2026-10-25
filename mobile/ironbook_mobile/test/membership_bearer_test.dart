@@ -391,7 +391,7 @@ void main() {
   );
 
   test(
-    'My Trainings and Trainer report POST retain non-Bearer behavior',
+    'Notifications and Trainer report POST retain non-Bearer behavior',
     () async {
       final tokens = FakeAccessTokenProvider();
       final paths = <String>[];
@@ -406,7 +406,7 @@ void main() {
               : http.Response('{}', 400);
         }),
       );
-      await api.getMyTrainings();
+      await api.getMemberNotifications();
       await expectLater(
         api.createTrainingReport(
           trainingRequestId: 8,
@@ -417,7 +417,7 @@ void main() {
       );
       expect(tokens.reads, 0);
       expect(paths, [
-        '/api/member/my-trainings',
+        '/api/member/notifications',
         '/api/trainer/training-reports',
       ]);
     },

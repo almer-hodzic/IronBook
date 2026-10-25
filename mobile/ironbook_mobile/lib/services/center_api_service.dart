@@ -100,7 +100,7 @@ class CenterApiService {
       path: '/api/member/my-trainings',
       queryParameters: status == null ? null : {'status': status},
     ).toString();
-    final response = await _get(path);
+    final response = await _get(path, authenticated: true);
     if (response.statusCode != 200) {
       throw const CenterApiException('My trainings could not be loaded.');
     }
@@ -119,7 +119,11 @@ class CenterApiService {
   }
 
   Future<TrainingRequestResult> cancelMyTraining(int id) async {
-    final response = await _post('/api/member/my-trainings/$id/cancel', {});
+    final response = await _post(
+      '/api/member/my-trainings/$id/cancel',
+      {},
+      authenticated: true,
+    );
     if (response.statusCode == 404) {
       throw const CenterApiException(
         'This training request is no longer available. Refresh your trainings.',
@@ -322,7 +326,7 @@ class CenterApiService {
       path: '/api/member/progress-log',
       queryParameters: query.isEmpty ? null : query,
     ).toString();
-    final response = await _get(path);
+    final response = await _get(path, authenticated: true);
     if (response.statusCode != 200) {
       throw const CenterApiException('Progress log could not be loaded.');
     }

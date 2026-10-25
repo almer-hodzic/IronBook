@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'support/token_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -24,8 +26,11 @@ Map<String, Object?> training({int id = 1, String status = 'Pending'}) => {
   'createdAt': '2030-01-01T10:00:00Z',
 };
 
-CenterApiService apiFor(http.Client client) =>
-    CenterApiService(client: client, apiBaseUrl: 'http://localhost');
+CenterApiService apiFor(http.Client client) => CenterApiService(
+  client: client,
+  apiBaseUrl: 'http://localhost',
+  accessTokenProvider: FakeAccessTokenProvider(),
+);
 
 Future<void> showScreen(WidgetTester tester, Widget screen) async {
   await tester.binding.setSurfaceSize(const Size(500, 2000));

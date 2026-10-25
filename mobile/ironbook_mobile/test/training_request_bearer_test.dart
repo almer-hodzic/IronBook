@@ -371,29 +371,24 @@ void main() {
     );
   });
 
-  test(
-    'My Trainings, Progress Log and Trainer Dashboard remain non-Bearer',
-    () async {
-      final tokens = FakeAccessTokenProvider();
-      final paths = <String>[];
-      final api = CenterApiService(
-        apiBaseUrl: 'http://localhost',
-        accessTokenProvider: tokens,
-        client: MockClient((request) async {
-          expect(request.headers.containsKey('Authorization'), isFalse);
-          paths.add(request.url.path);
-          return http.Response('[]', 200);
-        }),
-      );
-      await api.getMyTrainings();
-      await api.getMemberProgressLog();
-      await api.getTrainerDashboardRequests();
-      expect(tokens.reads, 0);
-      expect(paths, [
-        '/api/member/my-trainings',
-        '/api/member/progress-log',
-        '/api/trainer/dashboard/coaching-requests',
-      ]);
-    },
-  );
+  test('Notifications and Trainer Dashboard remain non-Bearer', () async {
+    final tokens = FakeAccessTokenProvider();
+    final paths = <String>[];
+    final api = CenterApiService(
+      apiBaseUrl: 'http://localhost',
+      accessTokenProvider: tokens,
+      client: MockClient((request) async {
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        paths.add(request.url.path);
+        return http.Response('[]', 200);
+      }),
+    );
+    await api.getMemberNotifications();
+    await api.getTrainerDashboardRequests();
+    expect(tokens.reads, 0);
+    expect(paths, [
+      '/api/member/notifications',
+      '/api/trainer/dashboard/coaching-requests',
+    ]);
+  });
 }
