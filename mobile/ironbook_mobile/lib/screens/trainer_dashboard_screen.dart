@@ -10,9 +10,11 @@ class TrainerDashboardScreen extends StatefulWidget {
   const TrainerDashboardScreen({
     super.key,
     required this.centerApiService,
+    this.logoutAction,
   });
 
   final CenterApiService centerApiService;
+  final Widget? logoutAction;
 
   @override
   State<TrainerDashboardScreen> createState() => _TrainerDashboardScreenState();
@@ -41,7 +43,10 @@ class _TrainerDashboardScreenState extends State<TrainerDashboardScreen> {
         IronBookMobileHeader(
           title: 'Trainer Dashboard',
           subtitle: 'Your approved coaching requests.',
-          trailing: const _StatusBadge(),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            const _StatusBadge(),
+            if (widget.logoutAction != null) widget.logoutAction!,
+          ]),
         ),
         FutureBuilder<List<TrainerDashboardRequest>>(
           future: _requestsFuture,

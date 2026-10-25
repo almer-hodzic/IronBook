@@ -3,3 +3,4 @@ export 'src/auth_session.dart';
 export 'src/session_store.dart';
 export 'src/auth_controller.dart';
 export 'src/auth_gate.dart';
+export 'src/auth_roles.dart';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/center_list_screen.dart';
+import 'screens/trainer_dashboard_screen.dart';
 import 'services/center_api_service.dart';
 import 'services/auth_services.dart';
 import 'theme/ironbook_mobile_theme.dart';
@@ -27,17 +28,24 @@ class IronBookMobileApp extends StatefulWidget {
 class _IronBookMobileAppState extends State<IronBookMobileApp> {
   late final AuthApiService _api;
   late final AuthController _auth;
-  late final Widget _home;
+  late final Map<String, WidgetBuilder> _roots;
 
   @override
   void initState() {
     super.initState();
     _api = widget.authApiService ?? createAuthApiService();
     _auth = AuthController(_api);
-    _home = CenterListScreen(
-      centerApiService: widget.centerApiService ?? CenterApiService(),
-      logoutAction: AuthLogoutButton(controller: _auth),
-    );
+    final centers = widget.centerApiService ?? CenterApiService();
+    _roots = {
+      AuthRoles.member: (_) => CenterListScreen(
+        centerApiService: centers,
+        logoutAction: AuthLogoutButton(controller: _auth),
+      ),
+      AuthRoles.trainer: (_) => TrainerDashboardScreen(
+        centerApiService: centers,
+        logoutAction: AuthLogoutButton(controller: _auth),
+      ),
+    };
   }
 
   @override
@@ -54,7 +62,7 @@ class _IronBookMobileAppState extends State<IronBookMobileApp> {
       theme: IronBookMobileTheme.theme,
       home: AuthGate(
         controller: _auth,
-        home: _home,
+        authenticatedRoots: _roots,
         appTitle: 'IronBook Mobile',
       ),
     );

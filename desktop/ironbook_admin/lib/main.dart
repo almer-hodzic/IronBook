@@ -63,7 +63,7 @@ class _IronBookAdminAppState extends State<IronBookAdminApp> {
       theme: IronBookAdminTheme.theme,
       home: AuthGate(
         controller: _auth,
-        home: _home,
+        authenticatedRoots: {AuthRoles.admin: (_) => _home},
         appTitle: 'IronBook Admin',
       ),
     );

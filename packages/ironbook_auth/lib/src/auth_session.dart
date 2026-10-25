@@ -29,9 +29,11 @@ class AuthSession {
         username is! String ||
         username.trim().isEmpty ||
         role is! String ||
-        !const ['Admin', 'Member', 'Trainer'].contains(role)) {
+        role.trim().isEmpty) {
       throw const FormatException('Invalid authentication response.');
     }
+    // Preserve unknown nonempty roles so the gate can reject app entry while
+    // still allowing the user to explicitly sign out of that session.
     return AuthSession(
       accessToken: token,
       expiresAt: parsedExpiry.toUtc(),

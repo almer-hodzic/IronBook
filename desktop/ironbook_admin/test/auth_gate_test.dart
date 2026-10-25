@@ -57,13 +57,24 @@ void main() {
     expectLogin();
   });
 
-  for (final role in ['Member', 'Trainer', 'Admin']) {
+  void expectRoleRoot(String role) {
+    expect(
+      find.byType(AdminShell),
+      role == 'Admin' ? findsOneWidget : findsNothing,
+    );
+    expect(
+      find.text('This account cannot use this app.'),
+      role == 'Admin' ? findsNothing : findsOneWidget,
+    );
+  }
+
+  for (final role in ['Member', 'Trainer', 'Admin', 'Unknown']) {
     testWidgets(
-      'valid $role session restores existing root without login or role routing',
+      'restored $role session selects only its supported platform root',
       (tester) async {
         fixture.persist(role: role);
         await start(tester);
-        expect(find.byType(AdminShell), findsOneWidget);
+        expectRoleRoot(role);
         expect(getUsername(), findsNothing);
         expect(fixture.requests, isEmpty);
       },
@@ -232,4 +243,46 @@ void main() {
       expect(fixture.storage.value, isNotNull);
     },
   );
+  for (final role in ['Member', 'Trainer', 'Admin', 'Unknown']) {
+    testWidgets('$role login selects only its supported platform root', (
+      tester,
+    ) async {
+      fixture.respond = (_) async =>
+          http.Response(jsonEncode(fixture.session(role: role)), 200);
+      await start(tester);
+      await fill(tester);
+      await tester.tap(getSubmit());
+      await tester.pumpAndSettle();
+      expectRoleRoot(role);
+      expect(getUsername(), findsNothing);
+      expect(fixture.requests.single.url.path, '/api/auth/login');
+      expect(jsonDecode(fixture.storage.value!)['role'], role);
+    });
+  }
+
+  for (final role in ['Member', 'Trainer', 'Unknown']) {
+    for (final status in [204, 401]) {
+      testWidgets(
+        'unsupported $role can sign out on $status without entering business UI',
+        (tester) async {
+          fixture.persist(role: role);
+          final before = fixture.storage.value;
+          fixture.respond = (_) async => http.Response('', status);
+          await start(tester);
+          expectRoleRoot(role);
+          expect(fixture.requests, isEmpty);
+          expect(fixture.storage.value, before);
+          await tester.tap(find.text('Sign out'));
+          await tester.pumpAndSettle();
+          expectLogin();
+          expect(fixture.storage.value, isNull);
+          expect(fixture.requests.single.url.path, '/api/auth/logout');
+          expect(
+            fixture.requests.single.headers['Authorization'],
+            'Bearer fixture-access-token',
+          );
+        },
+      );
+    }
+  }
 }

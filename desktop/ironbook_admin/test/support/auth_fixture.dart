@@ -41,7 +41,7 @@ class AuthFixture {
   );
 
   Map<String, dynamic> session({
-    String role = 'Member',
+    String role = 'Admin',
     bool expired = false,
   }) => {
     'accessToken': 'fixture-access-token',
@@ -51,7 +51,7 @@ class AuthFixture {
     'role': role,
   };
 
-  void persist({String role = 'Member', bool expired = false}) {
+  void persist({String role = 'Admin', bool expired = false}) {
     storage.value = jsonEncode(session(role: role, expired: expired));
   }
 
