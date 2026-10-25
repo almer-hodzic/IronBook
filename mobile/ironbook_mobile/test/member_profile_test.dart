@@ -10,6 +10,8 @@ import 'package:ironbook_mobile/screens/member_profile_screen.dart';
 import 'package:ironbook_mobile/services/center_api_service.dart';
 import 'package:ironbook_mobile/theme/ironbook_mobile_theme.dart';
 
+import 'support/token_provider.dart';
+
 Map<String, Object?> profile() => {
   'id': 7,
   'firstName': 'Mira',
@@ -28,7 +30,11 @@ Future<void> showScreen(
   await tester.binding.setSurfaceSize(const Size(500, 1500));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   addTearDown(client.close);
-  final api = CenterApiService(client: client, apiBaseUrl: 'http://localhost');
+  final api = CenterApiService(
+    client: client,
+    apiBaseUrl: 'http://localhost',
+    accessTokenProvider: FakeAccessTokenProvider(),
+  );
   await tester.pumpWidget(
     MaterialApp(
       theme: IronBookMobileTheme.theme,

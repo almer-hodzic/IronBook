@@ -10,6 +10,8 @@ import 'package:ironbook_mobile/screens/training_preferences_screen.dart';
 import 'package:ironbook_mobile/services/center_api_service.dart';
 import 'package:ironbook_mobile/theme/ironbook_mobile_theme.dart';
 
+import 'support/token_provider.dart';
+
 Future<void> showScreen(WidgetTester tester, http.Client client) async {
   await tester.binding.setSurfaceSize(const Size(500, 1100));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -18,6 +20,7 @@ Future<void> showScreen(WidgetTester tester, http.Client client) async {
       theme: IronBookMobileTheme.theme,
       home: TrainingPreferencesScreen(
         centerApiService: CenterApiService(
+          accessTokenProvider: FakeAccessTokenProvider(),
           client: client,
           apiBaseUrl: 'http://localhost',
         ),
@@ -42,6 +45,7 @@ void main() {
         return http.Response(request.body, 200);
       });
       final api = CenterApiService(
+        accessTokenProvider: FakeAccessTokenProvider(),
         client: client,
         apiBaseUrl: 'http://localhost',
       );

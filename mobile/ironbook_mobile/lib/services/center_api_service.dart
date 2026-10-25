@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/center.dart';
@@ -21,24 +24,34 @@ import '../models/training_request.dart';
 import '../models/training_preferences.dart';
 
 class CenterApiException implements Exception {
-  const CenterApiException(this.message);
+  const CenterApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
 class CenterApiService {
-  CenterApiService({http.Client? client, String? apiBaseUrl})
-    : _client = client ?? http.Client(),
-      _apiBaseUrl = apiBaseUrl ?? AppConfig.apiBaseUrl;
+  CenterApiService({
+    http.Client? client,
+    String? apiBaseUrl,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = client ?? http.Client(),
+       _apiBaseUrl = apiBaseUrl ?? AppConfig.apiBaseUrl,
+       _tokens = accessTokenProvider ?? SessionStore();
 
   final http.Client _client;
   final String _apiBaseUrl;
+  final AccessTokenProvider _tokens;
+  late final http.Client _authenticatedClient = BearerHttpClient(
+    client: _client,
+    accessTokenProvider: _tokens,
+  );
 
   Future<MemberProfile> getMemberProfile() async {
-    final response = await _get('/api/member/profile');
+    final response = await _get('/api/member/profile', authenticated: true);
     if (response.statusCode != 200) {
       throw CenterApiException(
         _readProblemMessage(
@@ -62,7 +75,7 @@ class CenterApiService {
       'lastName': lastName.trim(),
       'email': email.trim(),
       'phoneNumber': phone == null || phone.isEmpty ? null : phone,
-    });
+    }, authenticated: true);
     if (response.statusCode != 200) {
       throw CenterApiException(
         _readProblemMessage(
@@ -214,7 +227,10 @@ class CenterApiService {
   }
 
   Future<TrainingPreferences?> getTrainingPreferences() async {
-    final response = await _get('/api/member/training-preferences');
+    final response = await _get(
+      '/api/member/training-preferences',
+      authenticated: true,
+    );
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
       throw const CenterApiException(
@@ -230,6 +246,7 @@ class CenterApiService {
     final response = await _put(
       '/api/member/training-preferences',
       preferences.toJson(),
+      authenticated: true,
     );
     if (response.statusCode == 404) {
       throw const CenterApiException('The active member could not be found.');
@@ -253,20 +270,30 @@ class CenterApiService {
     }
   }
 
-  Future<http.Response> _put(String path, Map<String, Object?> body) async {
+  Future<http.Response> _put(
+    String path,
+    Map<String, Object?> body, {
+    bool authenticated = false,
+  }) async {
     final baseUrl = _apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
       throw const CenterApiException('API_BASE_URL is not configured.');
     }
     try {
       final uri = Uri.parse(baseUrl).resolve(path);
-      return await _client
+      final response = await (authenticated ? _authenticatedClient : _client)
           .put(
             uri,
             headers: const {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
+      return _checkAuthentication(response, authenticated);
+    } on AuthenticationRequiredException {
+      throw const CenterApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const CenterApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {
@@ -789,7 +816,7 @@ class CenterApiService {
     );
   }
 
-  Future<http.Response> _get(String path) async {
+  Future<http.Response> _get(String path, {bool authenticated = false}) async {
     final baseUrl = _apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
       throw const CenterApiException('API_BASE_URL is not configured.');
@@ -798,7 +825,15 @@ class CenterApiService {
     final uri = Uri.parse(baseUrl).resolve(path);
 
     try {
-      return await _client.get(uri).timeout(const Duration(seconds: 15));
+      final response = await (authenticated ? _authenticatedClient : _client)
+          .get(uri)
+          .timeout(const Duration(seconds: 15));
+      return _checkAuthentication(response, authenticated);
+    } on AuthenticationRequiredException {
+      throw const CenterApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const CenterApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {
@@ -808,6 +843,19 @@ class CenterApiService {
     } on http.ClientException {
       throw const CenterApiException('Unable to connect to the IronBook API.');
     }
+  }
+
+  http.Response _checkAuthentication(
+    http.Response response,
+    bool authenticated,
+  ) {
+    if (authenticated && response.statusCode == 401) {
+      throw const CenterApiException(
+        'Your session was not accepted. Please log in again.',
+        statusCode: 401,
+      );
+    }
+    return response;
   }
 
   Future<http.Response> _post(String path, Map<String, Object?> body) async {

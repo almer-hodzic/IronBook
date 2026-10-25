@@ -35,7 +35,9 @@ class _IronBookMobileAppState extends State<IronBookMobileApp> {
     super.initState();
     _api = widget.authApiService ?? createAuthApiService();
     _auth = AuthController(_api);
-    final centers = widget.centerApiService ?? CenterApiService();
+    final centers =
+        widget.centerApiService ??
+        CenterApiService(accessTokenProvider: _api.sessions);
     _roots = {
       AuthRoles.member: (_) => CenterListScreen(
         centerApiService: centers,
