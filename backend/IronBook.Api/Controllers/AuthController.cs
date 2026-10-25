@@ -6,8 +6,22 @@ namespace IronBook.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService, ILogoutService logoutService) : ControllerBase
+public sealed class AuthController(IAuthService authService, ILogoutService logoutService,
+    IChangePasswordService changePasswordService) : ControllerBase
 {
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await changePasswordService.ChangeAsync(request, cancellationToken);
+        if (result.AccountMissing) return Unauthorized();
+        if (result.Succeeded) return NoContent();
+        foreach (var error in result.Errors)
+            foreach (var message in error.Value)
+                ModelState.AddModelError(error.Key, message);
+        return ValidationProblem(ModelState);
+    }
+
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout(CancellationToken cancellationToken) =>

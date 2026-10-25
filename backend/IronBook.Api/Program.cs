@@ -48,6 +48,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ILogoutService, LogoutService>();
+builder.Services.AddScoped<IChangePasswordService, ChangePasswordService>();
 builder.Services.AddScoped<IAuthSessionValidator, AuthSessionValidator>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentAccountContext, CurrentAccountContext>();
