@@ -40,6 +40,7 @@ class AdminShell extends StatefulWidget {
     required this.trainerApiService,
     required this.reportsApiService,
     required this.paymentApiService,
+    this.logoutAction,
   });
 
   final AdminCenterApiService centerApiService;
@@ -50,6 +51,7 @@ class AdminShell extends StatefulWidget {
   final AdminTrainerApiService trainerApiService;
   final AdminReportsApiService reportsApiService;
   final AdminPaymentApiService paymentApiService;
+  final Widget? logoutAction;
 
   @override
   State<AdminShell> createState() => _AdminShellState();
@@ -69,7 +71,8 @@ class _AdminShellState extends State<AdminShell> {
       ),
       AdminSection.dashboard => _AdminDashboardHome(
         onOpenCenters: () => _selectSection(AdminSection.centers),
-        onOpenCoachingRequests: () => _selectSection(AdminSection.coachingRequests),
+        onOpenCoachingRequests: () =>
+            _selectSection(AdminSection.coachingRequests),
         onOpenTrainers: () => _selectSection(AdminSection.trainers),
         onOpenMemberships: () => _selectSection(AdminSection.memberships),
         onOpenCheckIn: () => _selectSection(AdminSection.checkIn),
@@ -141,6 +144,7 @@ class _AdminShellState extends State<AdminShell> {
                                   _AdminSidebar(
                                     activeSection: _activeSection,
                                     compact: true,
+                                    logoutAction: widget.logoutAction,
                                     onSectionChanged: _selectSection,
                                   ),
                                   Expanded(child: content),
@@ -150,6 +154,7 @@ class _AdminShellState extends State<AdminShell> {
                                 children: [
                                   _AdminSidebar(
                                     activeSection: _activeSection,
+                                    logoutAction: widget.logoutAction,
                                     onSectionChanged: _selectSection,
                                   ),
                                   Expanded(child: content),
@@ -338,11 +343,13 @@ class _AdminSidebar extends StatelessWidget {
     required this.activeSection,
     required this.onSectionChanged,
     this.compact = false,
+    this.logoutAction,
   });
 
   final AdminSection activeSection;
   final ValueChanged<AdminSection> onSectionChanged;
   final bool compact;
+  final Widget? logoutAction;
 
   @override
   Widget build(BuildContext context) {
@@ -368,7 +375,11 @@ class _AdminSidebar extends StatelessWidget {
                 children: [
                   const _SidebarBrand(),
                   const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 8, children: _navItems()),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [..._navItems(), ?logoutAction],
+                  ),
                 ],
               )
             : Column(
@@ -378,6 +389,7 @@ class _AdminSidebar extends StatelessWidget {
                   const SizedBox(height: 30),
                   ..._navItems(),
                   const Spacer(),
+                  ?logoutAction,
                   const _SidebarScopeCard(),
                 ],
               ),

@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ironbook_admin/main.dart';
 import 'package:ironbook_admin/models/admin_payment.dart';
 import 'package:ironbook_admin/screens/admin_payments_screen.dart';
 import 'package:ironbook_admin/services/admin_payment_api_service.dart';
 import 'package:ironbook_admin/theme/ironbook_admin_theme.dart';
+
+import 'support/auth_fixture.dart';
 
 Map<String, Object> payment({
   bool completed = false,
@@ -355,7 +356,9 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const IronBookAdminApp());
+    final fixture = AuthFixture()..persist(role: 'Admin');
+    await tester.pumpWidget(fixture.app());
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Payments').first);
     await tester.pumpAndSettle();
     expect(find.byType(AdminPaymentsScreen), findsOneWidget);

@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ironbook_admin/main.dart';
 import 'package:ironbook_admin/models/admin_reports.dart';
 import 'package:ironbook_admin/screens/admin_reports_screen.dart';
 import 'package:ironbook_admin/services/admin_reports_api_service.dart';
 import 'package:ironbook_admin/theme/ironbook_admin_theme.dart';
+
+import 'support/auth_fixture.dart';
 
 Map<String, Object> summary({bool empty = false}) => {
   'asOfUtc': '2026-10-21T12:00:00Z',
@@ -313,7 +314,9 @@ void main() {
   testWidgets('Reports is a real sidebar destination', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const IronBookAdminApp());
+    final fixture = AuthFixture()..persist(role: 'Admin');
+    await tester.pumpWidget(fixture.app());
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reports').first);
     await tester.pumpAndSettle();
     expect(find.byType(AdminReportsScreen), findsOneWidget);

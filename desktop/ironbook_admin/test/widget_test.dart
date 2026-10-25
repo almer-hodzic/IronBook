@@ -1,12 +1,17 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ironbook_admin/main.dart';
+import 'support/auth_fixture.dart';
 
 void main() {
-  testWidgets('shows admin centers shell', (WidgetTester tester) async {
-    await tester.pumpWidget(const IronBookAdminApp());
-
-    expect(find.text('IronBook'), findsOneWidget);
-    expect(find.text('Centers Management'), findsOneWidget);
+  testWidgets('starts with session restoration before showing Login', (
+    tester,
+  ) async {
+    final fixture = AuthFixture();
+    await tester.pumpWidget(fixture.app());
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'Username'), findsOneWidget);
+    expect(fixture.requests, isEmpty);
   });
 }

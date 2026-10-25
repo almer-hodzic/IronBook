@@ -14,9 +14,14 @@ import 'trainer_dashboard_screen.dart';
 import 'training_preferences_screen.dart';
 
 class CenterListScreen extends StatefulWidget {
-  const CenterListScreen({super.key, required this.centerApiService});
+  const CenterListScreen({
+    super.key,
+    required this.centerApiService,
+    this.logoutAction,
+  });
 
   final CenterApiService centerApiService;
+  final Widget? logoutAction;
 
   @override
   State<CenterListScreen> createState() => _CenterListScreenState();
@@ -136,6 +141,7 @@ class _CenterListScreenState extends State<CenterListScreen> {
                 icon: const Icon(Icons.person_outline),
                 onPressed: _openProfile,
               ),
+              if (widget.logoutAction != null) widget.logoutAction!,
             ],
           ),
         ),
