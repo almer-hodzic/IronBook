@@ -588,6 +588,7 @@ class CenterApiService {
         : '?startDate=${_formatDateOnly(startDate)}';
     final response = await _get(
       '/api/centers/$centerId/trainers/$trainerId/availability$query',
+      authenticated: true,
     );
 
     if (response.statusCode == 404) {
@@ -632,6 +633,7 @@ class CenterApiService {
         'fitnessGoal': fitnessGoal,
         'note': note,
       },
+      authenticated: true,
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
