@@ -672,11 +672,15 @@ class CenterApiService {
   }
 
   Future<List<TrainerDashboardRequest>> getTrainerDashboardRequests() async {
-    final response = await _get('/api/trainer/dashboard/coaching-requests');
+    final response = await _get(
+      '/api/trainer/dashboard/coaching-requests',
+      authenticated: true,
+    );
 
     if (response.statusCode != 200) {
-      throw const CenterApiException(
+      throw CenterApiException(
         'Trainer dashboard requests could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -699,14 +703,21 @@ class CenterApiService {
   Future<TrainerClientDetails> getTrainerClientDetails(int requestId) async {
     final response = await _get(
       '/api/trainer/dashboard/coaching-requests/$requestId',
+      authenticated: true,
     );
 
     if (response.statusCode == 404) {
-      throw const CenterApiException('Client details could not be found.');
+      throw CenterApiException(
+        'Client details could not be found.',
+        statusCode: response.statusCode,
+      );
     }
 
     if (response.statusCode != 200) {
-      throw const CenterApiException('Client details could not be loaded.');
+      throw CenterApiException(
+        'Client details could not be loaded.',
+        statusCode: response.statusCode,
+      );
     }
 
     try {

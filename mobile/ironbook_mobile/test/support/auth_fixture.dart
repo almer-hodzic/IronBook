@@ -62,10 +62,11 @@ class AuthFixture {
       apiBaseUrl: 'http://localhost:5100',
       accessTokenProvider: api.sessions,
       client: MockClient((request) async {
-        if (request.url.path == '/api/member/notifications') {
+        if (request.url.path == '/api/member/notifications' ||
+            request.url.path == '/api/trainer/dashboard/coaching-requests') {
           if (request.headers['Authorization'] !=
               'Bearer fixture-access-token') {
-            throw StateError('Missing notification authentication');
+            throw StateError('Missing protected feature authentication');
           }
         } else if (request.headers.containsKey('Authorization')) {
           throw StateError('Unexpected feature auth migration');

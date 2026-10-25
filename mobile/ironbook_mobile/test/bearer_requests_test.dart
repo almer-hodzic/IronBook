@@ -345,27 +345,21 @@ void main() {
     );
   });
 
-  test(
-    'public Centers and Trainer calls neither read token nor add Bearer',
-    () async {
-      final tokens = FakeAccessTokenProvider();
-      final requests = <String>[];
-      final api = CenterApiService(
-        apiBaseUrl: 'http://localhost',
-        accessTokenProvider: tokens,
-        client: MockClient((request) async {
-          requests.add(request.url.path);
-          expect(request.headers.containsKey('Authorization'), isFalse);
-          return http.Response('[]', 200);
-        }),
-      );
-      await api.getCenters();
-      await api.getTrainerDashboardRequests();
-      expect(tokens.reads, 0);
-      expect(requests, [
-        '/api/centers',
-        '/api/trainer/dashboard/coaching-requests',
-      ]);
-    },
-  );
+  test('public Centers and Trainer catalog calls neither read token nor add Bearer', () async {
+    final tokens = FakeAccessTokenProvider();
+    final requests = <String>[];
+    final api = CenterApiService(
+      apiBaseUrl: 'http://localhost',
+      accessTokenProvider: tokens,
+      client: MockClient((request) async {
+        requests.add(request.url.path);
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        return http.Response('[]', 200);
+      }),
+    );
+    await api.getCenters();
+    await api.getTrainersForCenter(3);
+    expect(tokens.reads, 0);
+    expect(requests, ['/api/centers', '/api/centers/3/trainers']);
+  });
 }
