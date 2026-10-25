@@ -2,25 +2,35 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_center.dart';
 import '../models/admin_payment.dart';
 
 class AdminPaymentApiException implements Exception {
-  const AdminPaymentApiException(this.message);
+  const AdminPaymentApiException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
   @override
   String toString() => message;
 }
 
 class AdminPaymentApiService {
-  AdminPaymentApiService({http.Client? client, String? apiBaseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = (apiBaseUrl ?? AppConfig.apiBaseUrl).replaceFirst(
-        RegExp(r'/+$'),
-        '',
-      );
+  AdminPaymentApiService({
+    http.Client? client,
+    String? apiBaseUrl,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       ),
+       _baseUrl = (apiBaseUrl ?? AppConfig.apiBaseUrl).replaceFirst(
+         RegExp(r'/+$'),
+         '',
+       );
   final http.Client _client;
   final String _baseUrl;
 
@@ -117,9 +127,17 @@ class AdminPaymentApiService {
         } on FormatException {
           /* Keep the fallback for non-JSON error responses. */
         }
-        throw AdminPaymentApiException(message);
+        throw AdminPaymentApiException(
+          message,
+          statusCode: response.statusCode,
+        );
       }
       return jsonDecode(response.body);
+    } on AuthenticationRequiredException {
+      throw AdminPaymentApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminPaymentApiException(
         'Invalid API URL or payment response.',

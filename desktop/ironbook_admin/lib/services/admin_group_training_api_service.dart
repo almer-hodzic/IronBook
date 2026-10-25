@@ -2,22 +2,31 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_group_training.dart';
 
 class AdminGroupTrainingApiException implements Exception {
-  const AdminGroupTrainingApiException(this.message);
+  const AdminGroupTrainingApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
 class AdminGroupTrainingApiService {
-  AdminGroupTrainingApiService({http.Client? client})
-    : _client = client ?? http.Client();
+  AdminGroupTrainingApiService({
+    http.Client? client,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       );
 
   final http.Client _client;
 
@@ -36,8 +45,9 @@ class AdminGroupTrainingApiService {
 
     final response = await _get(_path('/api/admin/group-trainings', params));
     if (response.statusCode != 200) {
-      throw const AdminGroupTrainingApiException(
+      throw AdminGroupTrainingApiException(
         'Group trainings could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -64,14 +74,16 @@ class AdminGroupTrainingApiService {
     final response = await _get('/api/admin/group-trainings/$id');
 
     if (response.statusCode == 404) {
-      throw const AdminGroupTrainingApiException(
+      throw AdminGroupTrainingApiException(
         'Group training was not found.',
+        statusCode: response.statusCode,
       );
     }
 
     if (response.statusCode != 200) {
-      throw const AdminGroupTrainingApiException(
+      throw AdminGroupTrainingApiException(
         'Group training details could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -94,8 +106,9 @@ class AdminGroupTrainingApiService {
       _path('/api/admin/group-trainings/trainer-options', params),
     );
     if (response.statusCode != 200) {
-      throw const AdminGroupTrainingApiException(
+      throw AdminGroupTrainingApiException(
         'Trainer options could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -138,6 +151,7 @@ class AdminGroupTrainingApiService {
         response.body,
         'Group training could not be created.',
       ),
+      statusCode: response.statusCode,
     );
   }
 
@@ -158,8 +172,9 @@ class AdminGroupTrainingApiService {
     }
 
     if (response.statusCode == 404) {
-      throw const AdminGroupTrainingApiException(
+      throw AdminGroupTrainingApiException(
         'Group training was not found.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -168,6 +183,7 @@ class AdminGroupTrainingApiService {
         response.body,
         'Group training could not be updated.',
       ),
+      statusCode: response.statusCode,
     );
   }
 
@@ -176,6 +192,11 @@ class AdminGroupTrainingApiService {
 
     try {
       return await _client.get(uri).timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminGroupTrainingApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminGroupTrainingApiException(
         'API_BASE_URL is not a valid URL.',
@@ -206,6 +227,11 @@ class AdminGroupTrainingApiService {
           : _client.put(uri, headers: headers, body: encodedBody);
 
       return await request.timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminGroupTrainingApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminGroupTrainingApiException(
         'API_BASE_URL is not a valid URL.',

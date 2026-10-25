@@ -2,22 +2,31 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_trainer.dart';
 
 class AdminTrainerApiException implements Exception {
-  const AdminTrainerApiException(this.message);
+  const AdminTrainerApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
 class AdminTrainerApiService {
-  AdminTrainerApiService({http.Client? client})
-    : _client = client ?? http.Client();
+  AdminTrainerApiService({
+    http.Client? client,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       );
 
   final http.Client _client;
 
@@ -29,7 +38,10 @@ class AdminTrainerApiService {
     final response = await _get(path);
 
     if (response.statusCode != 200) {
-      throw const AdminTrainerApiException('Trainers could not be loaded.');
+      throw AdminTrainerApiException(
+        'Trainers could not be loaded.',
+        statusCode: response.statusCode,
+      );
     }
 
     final decoded = _decodeJson(response.body);
@@ -52,12 +64,16 @@ class AdminTrainerApiService {
     final response = await _get('/api/admin/trainers/$id');
 
     if (response.statusCode == 404) {
-      throw const AdminTrainerApiException('Trainer was not found.');
+      throw AdminTrainerApiException(
+        'Trainer was not found.',
+        statusCode: response.statusCode,
+      );
     }
 
     if (response.statusCode != 200) {
-      throw const AdminTrainerApiException(
+      throw AdminTrainerApiException(
         'Trainer details could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -85,6 +101,7 @@ class AdminTrainerApiService {
 
     throw AdminTrainerApiException(
       _readProblemMessage(response.body, 'Trainer could not be created.'),
+      statusCode: response.statusCode,
     );
   }
 
@@ -105,11 +122,15 @@ class AdminTrainerApiService {
     }
 
     if (response.statusCode == 404) {
-      throw const AdminTrainerApiException('Trainer was not found.');
+      throw AdminTrainerApiException(
+        'Trainer was not found.',
+        statusCode: response.statusCode,
+      );
     }
 
     throw AdminTrainerApiException(
       _readProblemMessage(response.body, 'Trainer could not be updated.'),
+      statusCode: response.statusCode,
     );
   }
 
@@ -118,6 +139,11 @@ class AdminTrainerApiService {
 
     try {
       return await _client.get(uri).timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminTrainerApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminTrainerApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {
@@ -146,6 +172,11 @@ class AdminTrainerApiService {
           : _client.put(uri, headers: headers, body: encodedBody);
 
       return await request.timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminTrainerApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminTrainerApiException('API_BASE_URL is not a valid URL.');
     } on TimeoutException {

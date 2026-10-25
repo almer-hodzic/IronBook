@@ -37,14 +37,28 @@ class _IronBookAdminAppState extends State<IronBookAdminApp> {
     _api = widget.authApiService ?? createAuthApiService();
     _auth = AuthController(_api);
     _home = AdminShell(
-      centerApiService: AdminCenterApiService(),
+      centerApiService: AdminCenterApiService(
+        accessTokenProvider: _api.sessions,
+      ),
       checkInApiService: AdminCheckInApiService(),
-      coachingRequestApiService: AdminCoachingRequestApiService(),
-      groupTrainingApiService: AdminGroupTrainingApiService(),
-      membershipPlanApiService: AdminMembershipPlanApiService(),
-      trainerApiService: AdminTrainerApiService(),
-      reportsApiService: AdminReportsApiService(),
-      paymentApiService: AdminPaymentApiService(),
+      coachingRequestApiService: AdminCoachingRequestApiService(
+        accessTokenProvider: _api.sessions,
+      ),
+      groupTrainingApiService: AdminGroupTrainingApiService(
+        accessTokenProvider: _api.sessions,
+      ),
+      membershipPlanApiService: AdminMembershipPlanApiService(
+        accessTokenProvider: _api.sessions,
+      ),
+      trainerApiService: AdminTrainerApiService(
+        accessTokenProvider: _api.sessions,
+      ),
+      reportsApiService: AdminReportsApiService(
+        accessTokenProvider: _api.sessions,
+      ),
+      paymentApiService: AdminPaymentApiService(
+        accessTokenProvider: _api.sessions,
+      ),
       logoutAction: AuthLogoutButton(controller: _auth),
     );
   }

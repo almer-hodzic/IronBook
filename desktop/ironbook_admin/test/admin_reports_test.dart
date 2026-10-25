@@ -11,6 +11,7 @@ import 'package:ironbook_admin/services/admin_reports_api_service.dart';
 import 'package:ironbook_admin/theme/ironbook_admin_theme.dart';
 
 import 'support/auth_fixture.dart';
+import 'support/token_provider.dart';
 
 Map<String, Object> summary({bool empty = false}) => {
   'asOfUtc': '2026-10-21T12:00:00Z',
@@ -58,6 +59,7 @@ Future<void> showReports(WidgetTester tester, http.Client client) async {
       home: Scaffold(
         body: AdminReportsScreen(
           reportsApiService: AdminReportsApiService(
+            accessTokenProvider: FakeAccessTokenProvider(),
             client: client,
             apiBaseUrl: 'http://localhost',
           ),
@@ -82,6 +84,7 @@ void main() {
     });
     addTearDown(client.close);
     final api = AdminReportsApiService(
+      accessTokenProvider: FakeAccessTokenProvider(),
       client: client,
       apiBaseUrl: 'http://localhost/',
     );
@@ -292,6 +295,7 @@ void main() {
       });
       addTearDown(client.close);
       final api = AdminReportsApiService(
+        accessTokenProvider: FakeAccessTokenProvider(),
         client: client,
         apiBaseUrl: 'http://localhost',
       );

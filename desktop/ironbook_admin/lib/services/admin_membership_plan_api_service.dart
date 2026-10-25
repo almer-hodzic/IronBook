@@ -2,22 +2,31 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_membership_plan.dart';
 
 class AdminMembershipPlanApiException implements Exception {
-  const AdminMembershipPlanApiException(this.message);
+  const AdminMembershipPlanApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
 class AdminMembershipPlanApiService {
-  AdminMembershipPlanApiService({http.Client? client})
-    : _client = client ?? http.Client();
+  AdminMembershipPlanApiService({
+    http.Client? client,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       );
 
   final http.Client _client;
 
@@ -29,8 +38,9 @@ class AdminMembershipPlanApiService {
     final response = await _get(path);
 
     if (response.statusCode != 200) {
-      throw const AdminMembershipPlanApiException(
+      throw AdminMembershipPlanApiException(
         'Membership plans could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -54,14 +64,16 @@ class AdminMembershipPlanApiService {
     final response = await _get('/api/admin/membership-plans/$id');
 
     if (response.statusCode == 404) {
-      throw const AdminMembershipPlanApiException(
+      throw AdminMembershipPlanApiException(
         'Membership plan was not found.',
+        statusCode: response.statusCode,
       );
     }
 
     if (response.statusCode != 200) {
-      throw const AdminMembershipPlanApiException(
+      throw AdminMembershipPlanApiException(
         'Membership plan details could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -84,11 +96,17 @@ class AdminMembershipPlanApiService {
     );
 
     if (response.statusCode == 201) {
-      return AdminMembershipPlan.fromJson(_readObject(_decodeJson(response.body)));
+      return AdminMembershipPlan.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
     }
 
     throw AdminMembershipPlanApiException(
-      _readProblemMessage(response.body, 'Membership plan could not be created.'),
+      _readProblemMessage(
+        response.body,
+        'Membership plan could not be created.',
+      ),
+      statusCode: response.statusCode,
     );
   }
 
@@ -103,17 +121,24 @@ class AdminMembershipPlanApiService {
     );
 
     if (response.statusCode == 200) {
-      return AdminMembershipPlan.fromJson(_readObject(_decodeJson(response.body)));
+      return AdminMembershipPlan.fromJson(
+        _readObject(_decodeJson(response.body)),
+      );
     }
 
     if (response.statusCode == 404) {
-      throw const AdminMembershipPlanApiException(
+      throw AdminMembershipPlanApiException(
         'Membership plan was not found.',
+        statusCode: response.statusCode,
       );
     }
 
     throw AdminMembershipPlanApiException(
-      _readProblemMessage(response.body, 'Membership plan could not be updated.'),
+      _readProblemMessage(
+        response.body,
+        'Membership plan could not be updated.',
+      ),
+      statusCode: response.statusCode,
     );
   }
 
@@ -122,6 +147,11 @@ class AdminMembershipPlanApiService {
 
     try {
       return await _client.get(uri).timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminMembershipPlanApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminMembershipPlanApiException(
         'API_BASE_URL is not a valid URL.',
@@ -152,6 +182,11 @@ class AdminMembershipPlanApiService {
           : _client.put(uri, headers: headers, body: encodedBody);
 
       return await request.timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminMembershipPlanApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
       throw const AdminMembershipPlanApiException(
         'API_BASE_URL is not a valid URL.',
@@ -182,7 +217,9 @@ class AdminMembershipPlanApiService {
     try {
       return jsonDecode(body);
     } on FormatException {
-      throw const AdminMembershipPlanApiException('API returned malformed JSON.');
+      throw const AdminMembershipPlanApiException(
+        'API returned malformed JSON.',
+      );
     }
   }
 

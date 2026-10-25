@@ -2,25 +2,35 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_center.dart';
 import '../models/admin_reports.dart';
 
 class AdminReportsApiException implements Exception {
-  const AdminReportsApiException(this.message);
+  const AdminReportsApiException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
   @override
   String toString() => message;
 }
 
 class AdminReportsApiService {
-  AdminReportsApiService({http.Client? client, String? apiBaseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = (apiBaseUrl ?? AppConfig.apiBaseUrl).replaceFirst(
-        RegExp(r'/+$'),
-        '',
-      );
+  AdminReportsApiService({
+    http.Client? client,
+    String? apiBaseUrl,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       ),
+       _baseUrl = (apiBaseUrl ?? AppConfig.apiBaseUrl).replaceFirst(
+         RegExp(r'/+$'),
+         '',
+       );
 
   final http.Client _client;
   final String _baseUrl;
@@ -92,9 +102,17 @@ class AdminReportsApiService {
         } on FormatException {
           /* Use the fallback for non-JSON error responses. */
         }
-        throw AdminReportsApiException(message);
+        throw AdminReportsApiException(
+          message,
+          statusCode: response.statusCode,
+        );
       }
       return jsonDecode(response.body);
+    } on AuthenticationRequiredException {
+      throw AdminReportsApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on TimeoutException {
       throw const AdminReportsApiException(
         'Reports request timed out. Please retry.',

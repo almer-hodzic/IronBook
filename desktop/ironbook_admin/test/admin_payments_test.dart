@@ -11,6 +11,7 @@ import 'package:ironbook_admin/services/admin_payment_api_service.dart';
 import 'package:ironbook_admin/theme/ironbook_admin_theme.dart';
 
 import 'support/auth_fixture.dart';
+import 'support/token_provider.dart';
 
 Map<String, Object> payment({
   bool completed = false,
@@ -54,6 +55,7 @@ Future<void> showPayments(WidgetTester tester, http.Client client) async {
       home: Scaffold(
         body: AdminPaymentsScreen(
           paymentApiService: AdminPaymentApiService(
+            accessTokenProvider: FakeAccessTokenProvider(),
             client: client,
             apiBaseUrl: 'http://localhost',
           ),
@@ -85,6 +87,7 @@ void main() {
     });
     addTearDown(client.close);
     final api = AdminPaymentApiService(
+      accessTokenProvider: FakeAccessTokenProvider(),
       client: client,
       apiBaseUrl: 'http://localhost/',
     );
@@ -117,6 +120,7 @@ void main() {
     final client = MockClient((request) async => jsonResponse(body, status));
     addTearDown(client.close);
     final api = AdminPaymentApiService(
+      accessTokenProvider: FakeAccessTokenProvider(),
       client: client,
       apiBaseUrl: 'http://localhost',
     );

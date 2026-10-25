@@ -2,23 +2,32 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ironbook_auth/ironbook_auth.dart';
+
+import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/admin_coaching_request.dart';
 import '../models/admin_trainer.dart';
 
 class AdminCoachingRequestApiException implements Exception {
-  const AdminCoachingRequestApiException(this.message);
+  const AdminCoachingRequestApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
 class AdminCoachingRequestApiService {
-  AdminCoachingRequestApiService({http.Client? client})
-    : _client = client ?? http.Client();
+  AdminCoachingRequestApiService({
+    http.Client? client,
+    AccessTokenProvider? accessTokenProvider,
+  }) : _client = BearerHttpClient(
+         client: client ?? http.Client(),
+         accessTokenProvider: accessTokenProvider ?? SessionStore(),
+       );
 
   final http.Client _client;
 
@@ -44,8 +53,9 @@ class AdminCoachingRequestApiService {
     final response = await _get(path);
 
     if (response.statusCode != 200) {
-      throw const AdminCoachingRequestApiException(
+      throw AdminCoachingRequestApiException(
         'Coaching requests could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -98,22 +108,25 @@ class AdminCoachingRequestApiService {
     }
 
     if (response.statusCode == 404) {
-      throw const AdminCoachingRequestApiException(
+      throw AdminCoachingRequestApiException(
         'Coaching request was not found.',
+        statusCode: response.statusCode,
       );
     }
 
     if (response.statusCode == 409) {
       throw AdminCoachingRequestApiException(
-        _readProblemMessage(response.body, 'The selected trainer is unavailable.'),
+        _readProblemMessage(
+          response.body,
+          'The selected trainer is unavailable.',
+        ),
+        statusCode: response.statusCode,
       );
     }
 
     throw AdminCoachingRequestApiException(
-      _readProblemMessage(
-        response.body,
-        'Trainer could not be reassigned.',
-      ),
+      _readProblemMessage(response.body, 'Trainer could not be reassigned.'),
+      statusCode: response.statusCode,
     );
   }
 
@@ -123,8 +136,11 @@ class AdminCoachingRequestApiService {
         .where(
           (trainer) =>
               trainer.isActive &&
-              trainer.centers.any((assignment) =>
-                  assignment.centerId == centerId && assignment.centerName.isNotEmpty),
+              trainer.centers.any(
+                (assignment) =>
+                    assignment.centerId == centerId &&
+                    assignment.centerName.isNotEmpty,
+              ),
         )
         .toList(growable: false);
   }
@@ -143,13 +159,15 @@ class AdminCoachingRequestApiService {
     }
 
     if (response.statusCode == 404) {
-      throw const AdminCoachingRequestApiException(
+      throw AdminCoachingRequestApiException(
         'Coaching request was not found.',
+        statusCode: response.statusCode,
       );
     }
 
     throw AdminCoachingRequestApiException(
       _readProblemMessage(response.body, 'Action could not be completed.'),
+      statusCode: response.statusCode,
     );
   }
 
@@ -157,8 +175,9 @@ class AdminCoachingRequestApiService {
     final response = await _get('/api/admin/trainers');
 
     if (response.statusCode != 200) {
-      throw const AdminCoachingRequestApiException(
+      throw AdminCoachingRequestApiException(
         'Trainer options could not be loaded.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -179,8 +198,15 @@ class AdminCoachingRequestApiService {
 
     try {
       return await _client.get(uri).timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminCoachingRequestApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
-      throw const AdminCoachingRequestApiException('API_BASE_URL is not a valid URL.');
+      throw const AdminCoachingRequestApiException(
+        'API_BASE_URL is not a valid URL.',
+      );
     } on TimeoutException {
       throw const AdminCoachingRequestApiException(
         'The IronBook API did not respond in time.',
@@ -206,8 +232,15 @@ class AdminCoachingRequestApiService {
           : _client.put(uri, headers: headers, body: jsonEncode(body));
 
       return await request.timeout(const Duration(seconds: 15));
+    } on AuthenticationRequiredException {
+      throw AdminCoachingRequestApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
     } on FormatException {
-      throw const AdminCoachingRequestApiException('API_BASE_URL is not a valid URL.');
+      throw const AdminCoachingRequestApiException(
+        'API_BASE_URL is not a valid URL.',
+      );
     } on TimeoutException {
       throw const AdminCoachingRequestApiException(
         'The IronBook API did not respond in time.',
@@ -222,7 +255,9 @@ class AdminCoachingRequestApiService {
   Uri _buildUri(String path) {
     final baseUrl = AppConfig.apiBaseUrl.trim();
     if (baseUrl.isEmpty) {
-      throw const AdminCoachingRequestApiException('API_BASE_URL is not configured.');
+      throw const AdminCoachingRequestApiException(
+        'API_BASE_URL is not configured.',
+      );
     }
 
     return Uri.parse(baseUrl).resolve(path);
@@ -232,7 +267,9 @@ class AdminCoachingRequestApiService {
     try {
       return jsonDecode(body);
     } on FormatException {
-      throw const AdminCoachingRequestApiException('API returned malformed JSON.');
+      throw const AdminCoachingRequestApiException(
+        'API returned malformed JSON.',
+      );
     }
   }
 
