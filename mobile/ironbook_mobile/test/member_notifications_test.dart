@@ -1,3 +1,5 @@
+import 'support/paged_fixture.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -48,10 +50,12 @@ void main() {
         if (request.method == 'GET') {
           expect(request.url.path, '/api/member/notifications');
           return http.Response(
-            jsonEncode([
-              notification(id: 1, date: '2030-01-14T10:00:00'),
-              notification(id: 2),
-            ]),
+            jsonEncode(
+              paged([
+                notification(id: 2),
+                notification(id: 1, date: '2030-01-14T10:00:00'),
+              ]),
+            ),
             200,
           );
         }
@@ -61,7 +65,7 @@ void main() {
       });
       addTearDown(client.close);
       final api = apiFor(client);
-      final notifications = await api.getMemberNotifications();
+      final notifications = (await api.getMemberNotifications()).items;
       expect(notifications.map((item) => item.id), [2, 1]);
       expect(notifications.first.createdAt, DateTime.utc(2030, 1, 15, 10));
       expect(notifications.first.createdAt.isUtc, isTrue);
@@ -87,8 +91,9 @@ void main() {
   testWidgets('loading, error, retry, empty and refresh', (tester) async {
     var calls = 0;
     final client = MockClient(
-      (request) async =>
-          ++calls == 1 ? http.Response('', 500) : http.Response('[]', 200),
+      (request) async => ++calls == 1
+          ? http.Response('', 500)
+          : http.Response(jsonEncode(paged([])), 200),
     );
     addTearDown(client.close);
     await showScreen(
@@ -115,7 +120,7 @@ void main() {
       final pending = Completer<http.Response>();
       final client = MockClient((request) async {
         if (request.method == 'GET') {
-          return http.Response(jsonEncode([notification()]), 200);
+          return http.Response(jsonEncode(paged([notification()])), 200);
         }
         if (++puts == 1) return http.Response('', 500);
         return pending.future;
@@ -165,7 +170,10 @@ void main() {
           return http.Response(jsonEncode(notification(read: true)), 200);
         }
         gets++;
-        return http.Response(jsonEncode([notification(read: read)]), 200);
+        return http.Response(
+          jsonEncode(paged([notification(read: read)])),
+          200,
+        );
       });
       addTearDown(client.close);
       await showScreen(

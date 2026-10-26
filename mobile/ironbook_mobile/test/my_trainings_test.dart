@@ -1,3 +1,5 @@
+import 'support/paged_fixture.dart';
+
 import 'dart:convert';
 
 import 'support/token_provider.dart';
@@ -57,7 +59,7 @@ void main() {
         expect(request.url.path, '/api/member/my-trainings');
         queries.add(request.url.queryParameters);
         return http.Response(
-          jsonEncode([training(id: 2), training(id: 1)]),
+          jsonEncode(paged([training(id: 2), training(id: 1)])),
           200,
         );
       }
@@ -67,11 +69,11 @@ void main() {
     });
     addTearDown(client.close);
     final api = apiFor(client);
-    expect((await api.getMyTrainings()).map((item) => item.id), [2, 1]);
+    expect((await api.getMyTrainings()).items.map((item) => item.id), [2, 1]);
     await api.getMyTrainings(status: 'Approved');
     expect(queries, [
-      {},
-      {'status': 'Approved'},
+      {'pageNumber': '1', 'pageSize': '20'},
+      {'pageNumber': '1', 'pageSize': '20', 'status': 'Approved'},
     ]);
     expect((await api.cancelMyTraining(1)).status, 'Cancelled');
   });
@@ -99,7 +101,10 @@ void main() {
       final client = MockClient((request) async {
         gets++;
         if (gets == 1) return http.Response('', 500);
-        return http.Response(jsonEncode(gets == 2 ? [] : [training()]), 200);
+        return http.Response(
+          jsonEncode(paged(gets == 2 ? [] : [training()])),
+          200,
+        );
       });
       addTearDown(client.close);
       await showScreen(
@@ -132,12 +137,14 @@ void main() {
     (tester) async {
       final client = MockClient(
         (request) async => http.Response(
-          jsonEncode([
-            training(id: 2, status: 'Approved'),
-            training(id: 1),
-            training(id: 3, status: 'Rejected'),
-            training(id: 4, status: 'Cancelled'),
-          ]),
+          jsonEncode(
+            paged([
+              training(id: 2, status: 'Approved'),
+              training(id: 1),
+              training(id: 3, status: 'Rejected'),
+              training(id: 4, status: 'Cancelled'),
+            ]),
+          ),
           200,
         ),
       );
@@ -180,7 +187,10 @@ void main() {
           return http.Response(jsonEncode(training(status: 'Cancelled')), 200);
         }
         queries.add(request.url.queryParameters['status']);
-        return http.Response(jsonEncode(cancelled ? [] : [training()]), 200);
+        return http.Response(
+          jsonEncode(paged(cancelled ? [] : [training()])),
+          200,
+        );
       });
       addTearDown(client.close);
       await showScreen(
@@ -211,7 +221,7 @@ void main() {
     final client = MockClient(
       (request) async => request.method == 'POST'
           ? http.Response('', 409)
-          : http.Response(jsonEncode([training()]), 200),
+          : http.Response(jsonEncode(paged([training()])), 200),
     );
     addTearDown(client.close);
     await showScreen(
@@ -237,7 +247,7 @@ void main() {
         }
         return cancelled
             ? http.Response('', 500)
-            : http.Response(jsonEncode([training()]), 200);
+            : http.Response(jsonEncode(paged([training()])), 200);
       });
       addTearDown(client.close);
       await showScreen(
@@ -260,7 +270,7 @@ void main() {
     final paths = <String>[];
     final client = MockClient((request) async {
       paths.add(request.url.path);
-      return http.Response('[]', 200);
+      return http.Response(memberListBody(request, []), 200);
     });
     addTearDown(client.close);
     await showScreen(

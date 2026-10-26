@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/center.dart';
-import '../models/member_notification.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
@@ -29,7 +28,7 @@ class CenterListScreen extends StatefulWidget {
 
 class _CenterListScreenState extends State<CenterListScreen> {
   late Future<List<FitnessCenter>> _centersFuture;
-  late Future<List<MemberNotification>> _notificationsFuture;
+  late Future<int> _notificationsFuture;
   final _searchController = TextEditingController();
   int? _selectedCenterId;
   String _searchQuery = '';
@@ -38,7 +37,7 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void initState() {
     super.initState();
     _centersFuture = widget.centerApiService.getCenters();
-    _notificationsFuture = widget.centerApiService.getMemberNotifications();
+    _notificationsFuture = widget.centerApiService.getUnreadNotificationCount();
   }
 
   @override
@@ -50,7 +49,8 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void _retry() {
     setState(() {
       _centersFuture = widget.centerApiService.getCenters();
-      _notificationsFuture = widget.centerApiService.getMemberNotifications();
+      _notificationsFuture = widget.centerApiService
+          .getUnreadNotificationCount();
     });
   }
 
@@ -98,7 +98,8 @@ class _CenterListScreenState extends State<CenterListScreen> {
     );
     if (!mounted) return;
     setState(() {
-      _notificationsFuture = widget.centerApiService.getMemberNotifications();
+      _notificationsFuture = widget.centerApiService
+          .getUnreadNotificationCount();
     });
   }
 
@@ -116,13 +117,13 @@ class _CenterListScreenState extends State<CenterListScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              FutureBuilder<List<MemberNotification>>(
+              FutureBuilder<int>(
                 future: _notificationsFuture,
                 builder: (context, snapshot) {
                   final unread =
                       snapshot.connectionState == ConnectionState.done &&
                           !snapshot.hasError
-                      ? snapshot.data?.where((item) => !item.isRead).length
+                      ? snapshot.data
                       : null;
                   return Badge.count(
                     count: unread ?? 0,

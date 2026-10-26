@@ -1,3 +1,5 @@
+import 'support/paged_fixture.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -151,19 +153,24 @@ void main() {
     final api = apiFor((request) async {
       expect(request.method, 'GET');
       expect(request.url.path, '/api/member/notifications');
-      expect(request.url.hasQuery, isFalse);
+      expect(request.url.queryParameters, {
+        'pageNumber': '1',
+        'pageSize': '20',
+      });
       expect(request.body, isEmpty);
       expect(request.headers['Authorization'], 'Bearer fixture-access-token');
       return http.Response(
-        jsonEncode([
-          notification(id: 1, date: '2030-01-14T10:00:00'),
-          notification(id: 2, read: true),
-          notification(id: 3),
-        ]),
+        jsonEncode(
+          paged([
+            notification(id: 3),
+            notification(id: 2, read: true),
+            notification(id: 1, date: '2030-01-14T10:00:00'),
+          ]),
+        ),
         200,
       );
     });
-    final rows = await api.getMemberNotifications();
+    final rows = (await api.getMemberNotifications()).items;
     expect(rows.map((n) => n.id), [3, 2, 1]);
     expect(rows.map((n) => n.isRead), [false, true, false]);
     expect(rows.where((n) => !n.isRead), hasLength(2));
@@ -209,32 +216,37 @@ void main() {
         final api = apiFor((request) async {
           expect(request.method, 'GET');
           expect(request.url.path, '/api/centers/7/group-trainings');
-          expect(
-            request.url.queryParameters,
-            search == null || search.trim().isEmpty
-                ? isEmpty
-                : {'search': 'strength & recovery'},
-          );
+          expect(request.url.queryParameters, {
+            'pageNumber': '1',
+            'pageSize': '20',
+            if (search != null && search.trim().isNotEmpty)
+              'search': 'strength & recovery',
+          });
           expect(request.body, isEmpty);
           expect(
             request.headers['Authorization'],
             'Bearer fixture-access-token',
           );
           return http.Response(
-            jsonEncode([
-              groupJson,
-              {
-                ...groupJson,
-                'id': 21,
-                'isEnrolled': false,
-                'enrolledCount': 4,
-                'availableSpots': 6,
-              },
-            ]),
+            jsonEncode(
+              paged([
+                groupJson,
+                {
+                  ...groupJson,
+                  'id': 21,
+                  'isEnrolled': false,
+                  'enrolledCount': 4,
+                  'availableSpots': 6,
+                },
+              ]),
+            ),
             200,
           );
         });
-        final rows = await api.getGroupTrainingsForCenter(7, search: search);
+        final rows = (await api.getGroupTrainingsForCenter(
+          7,
+          search: search,
+        )).items;
         expect(rows.map((g) => g.id), [22, 21]);
         expect(rows.map((g) => g.isEnrolled), [true, false]);
         expect(rows.map((g) => g.availableSpots), [0, 6]);
@@ -340,7 +352,7 @@ void main() {
         (request) async => http.Response(
           request.url.path.endsWith('/recommendations')
               ? jsonEncode(responseData(empty: true, personalized: false))
-              : '[]',
+              : jsonEncode(paged([])),
           200,
         ),
       );
@@ -348,8 +360,8 @@ void main() {
       expect(recommendations.trainers, isEmpty);
       expect(recommendations.groupTrainings, isEmpty);
       expect(recommendations.isPersonalized, isFalse);
-      expect(await api.getMemberNotifications(), isEmpty);
-      expect(await api.getGroupTrainingsForCenter(7), isEmpty);
+      expect((await api.getMemberNotifications()).items, isEmpty);
+      expect((await api.getGroupTrainingsForCenter(7)).items, isEmpty);
     },
   );
 }

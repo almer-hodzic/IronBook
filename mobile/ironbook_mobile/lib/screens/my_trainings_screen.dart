@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/training_request.dart';
+import '../models/paged_result.dart';
+import '../widgets/paging_controls.dart';
 import '../services/center_api_service.dart';
 import '../widgets/ironbook_mobile_components.dart';
 
@@ -17,6 +19,8 @@ class MyTrainingsScreen extends StatefulWidget {
 
 class _MyTrainingsScreenState extends State<MyTrainingsScreen> {
   List<TrainingRequestResult>? _trainings;
+  PagedResult<TrainingRequestResult>? _page;
+  int _pageNumber = 1;
   String? _status;
   String? _loadError;
   String? _cancelError;
@@ -41,12 +45,18 @@ class _MyTrainingsScreenState extends State<MyTrainingsScreen> {
       _cancelError = null;
     });
     try {
-      final trainings = await widget.centerApiService.getMyTrainings(
-        status: _status,
+      final page = await loadAvailablePage(
+        _pageNumber,
+        (number) => widget.centerApiService.getMyTrainings(
+          status: _status,
+          pageNumber: number,
+        ),
       );
       if (!mounted) return;
       setState(() {
-        _trainings = trainings;
+        _trainings = page.items;
+        _page = page;
+        _pageNumber = page.pageNumber;
         _loading = false;
       });
     } catch (error) {
@@ -62,8 +72,15 @@ class _MyTrainingsScreenState extends State<MyTrainingsScreen> {
     if (_busy || status == _status) return;
     setState(() {
       _status = status;
+      _pageNumber = 1;
       _success = null;
     });
+    _load();
+  }
+
+  void _changePage(int number) {
+    if (_busy) return;
+    _pageNumber = number;
     _load();
   }
 
@@ -248,6 +265,13 @@ class _MyTrainingsScreenState extends State<MyTrainingsScreen> {
               ],
             ),
           ),
+      if (!_loading && _loadError == null && _page != null)
+        PagingControls(
+          pageNumber: _page!.pageNumber,
+          totalPages: _page!.totalPages,
+          busy: _busy,
+          onPageChanged: _changePage,
+        ),
     ],
   );
 }

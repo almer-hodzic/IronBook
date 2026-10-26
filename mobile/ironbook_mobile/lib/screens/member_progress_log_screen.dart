@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/member_progress_log.dart';
+import '../models/paged_result.dart';
+import '../widgets/paging_controls.dart';
 import '../services/center_api_service.dart';
 import '../widgets/ironbook_mobile_components.dart';
 
@@ -15,7 +17,8 @@ class MemberProgressLogScreen extends StatefulWidget {
 }
 
 class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
-  late Future<List<MemberProgressLog>> _reportsFuture;
+  late Future<PagedResult<MemberProgressLog>> _reportsFuture;
+  int _pageNumber = 1;
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _filterError;
@@ -26,16 +29,21 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
     _reportsFuture = widget.centerApiService.getMemberProgressLog();
   }
 
-  void _load() {
+  void _load({bool resetPage = false}) {
     if (_fromDate != null && _toDate != null && _fromDate!.isAfter(_toDate!)) {
       setState(() => _filterError = 'From date cannot be after To date.');
       return;
     }
     setState(() {
       _filterError = null;
-      _reportsFuture = widget.centerApiService.getMemberProgressLog(
-        fromDate: _fromDate,
-        toDate: _toDate,
+      if (resetPage) _pageNumber = 1;
+      _reportsFuture = loadAvailablePage(
+        _pageNumber,
+        (number) => widget.centerApiService.getMemberProgressLog(
+          fromDate: _fromDate,
+          toDate: _toDate,
+          pageNumber: number,
+        ),
       );
     });
   }
@@ -55,13 +63,13 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
         _toDate = selected;
       }
     });
-    _load();
+    _load(resetPage: true);
   }
 
   void _clear() {
     _fromDate = null;
     _toDate = null;
-    _load();
+    _load(resetPage: true);
   }
 
   Widget _dateFilter({required bool from}) {
@@ -85,7 +93,7 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
               } else {
                 _toDate = null;
               }
-              _load();
+              _load(resetPage: true);
             },
           ),
       ],
@@ -139,7 +147,7 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
           ),
         ),
         if (_filterError == null)
-          FutureBuilder<List<MemberProgressLog>>(
+          FutureBuilder<PagedResult<MemberProgressLog>>(
             future: _reportsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -171,14 +179,29 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
                   ),
                 );
               }
-              final reports = snapshot.data ?? const <MemberProgressLog>[];
+              final page = snapshot.requireData;
+              _pageNumber = page.pageNumber;
+              final reports = page.items;
+              final controls = PagingControls(
+                pageNumber: page.pageNumber,
+                totalPages: page.totalPages,
+                onPageChanged: (number) {
+                  _pageNumber = number;
+                  _load();
+                },
+              );
               if (reports.isEmpty) {
-                return IronBookMobileSection(
-                  child: Text(
-                    _fromDate != null || _toDate != null
-                        ? 'No training reports match these dates.'
-                        : 'No training reports yet. Your trainer reports will appear here.',
-                  ),
+                return Column(
+                  children: [
+                    IronBookMobileSection(
+                      child: Text(
+                        _fromDate != null || _toDate != null
+                            ? 'No training reports match these dates.'
+                            : 'No training reports yet. Your trainer reports will appear here.',
+                      ),
+                    ),
+                    controls,
+                  ],
                 );
               }
               return Column(
@@ -188,6 +211,7 @@ class _MemberProgressLogScreenState extends State<MemberProgressLogScreen> {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _ReportCard(report: report),
                     ),
+                  controls,
                 ],
               );
             },

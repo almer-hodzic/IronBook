@@ -8,6 +8,7 @@ import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/center.dart';
+import '../models/paged_result.dart';
 import '../models/member_profile.dart';
 import '../models/group_training.dart';
 import '../models/member_progress_log.dart';
@@ -95,24 +96,33 @@ class CenterApiService {
     }
   }
 
-  Future<List<TrainingRequestResult>> getMyTrainings({String? status}) async {
+  Future<PagedResult<TrainingRequestResult>> getMyTrainings({
+    String? status,
+    int pageNumber = 1,
+    int pageSize = 20,
+  }) async {
     final path = Uri(
       path: '/api/member/my-trainings',
-      queryParameters: status == null ? null : {'status': status},
+      queryParameters: {
+        'pageNumber': '$pageNumber',
+        'pageSize': '$pageSize',
+        'status': ?status,
+      },
     ).toString();
     final response = await _get(path, authenticated: true);
     if (response.statusCode != 200) {
       throw const CenterApiException('My trainings could not be loaded.');
     }
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const CenterApiException('Invalid my trainings response.');
-    }
+    return _parsePage(response.body, TrainingRequestResult.fromJson);
+  }
+
+  PagedResult<T> _parsePage<T>(
+    String body,
+    T Function(Map<String, dynamic>) parseItem,
+  ) {
     try {
-      // Keep the API's upcoming-first, then newest-past ordering.
-      return decoded
-          .map((item) => TrainingRequestResult.fromJson(_readObject(item)))
-          .toList();
+      // Preserve the server's deterministic order across pages.
+      return PagedResult.fromJson(_decodeJson(body), parseItem);
     } on FormatException catch (error) {
       throw CenterApiException(error.message);
     }
@@ -154,26 +164,33 @@ class CenterApiService {
     }
   }
 
-  Future<List<MemberNotification>> getMemberNotifications() async {
-    final response = await _get(
-      '/api/member/notifications',
-      authenticated: true,
-    );
+  Future<PagedResult<MemberNotification>> getMemberNotifications({
+    int pageNumber = 1,
+    int pageSize = 20,
+  }) async {
+    final path = Uri(
+      path: '/api/member/notifications',
+      queryParameters: {'pageNumber': '$pageNumber', 'pageSize': '$pageSize'},
+    ).toString();
+    final response = await _get(path, authenticated: true);
     if (response.statusCode != 200) {
       throw const CenterApiException('Notifications could not be loaded.');
     }
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const CenterApiException('Invalid notifications response.');
-    }
-    try {
-      final notifications = decoded
-          .map((item) => MemberNotification.fromJson(_readObject(item)))
-          .toList();
-      notifications.sort(MemberNotification.newestFirst);
-      return notifications;
-    } on FormatException catch (error) {
-      throw CenterApiException(error.message);
+    return _parsePage(response.body, MemberNotification.fromJson);
+  }
+
+  // The existing home badge represents all unread notifications, not just page 1.
+  Future<int> getUnreadNotificationCount() async {
+    var number = 1;
+    var unread = 0;
+    while (true) {
+      final page = await getMemberNotifications(
+        pageNumber: number,
+        pageSize: 100,
+      );
+      unread += page.items.where((item) => !item.isRead).length;
+      if (number >= page.totalPages) return unread;
+      number++;
     }
   }
 
@@ -317,7 +334,9 @@ class CenterApiService {
     }
   }
 
-  Future<List<MemberProgressLog>> getMemberProgressLog({
+  Future<PagedResult<MemberProgressLog>> getMemberProgressLog({
+    int pageNumber = 1,
+    int pageSize = 20,
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
@@ -327,6 +346,8 @@ class CenterApiService {
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
     final query = <String, String>{
+      'pageNumber': '$pageNumber',
+      'pageSize': '$pageSize',
       if (fromDate != null) 'fromDate': dateOnly(fromDate),
       if (toDate != null) 'toDate': dateOnly(toDate),
     };
@@ -339,22 +360,7 @@ class CenterApiService {
       throw const CenterApiException('Progress log could not be loaded.');
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const CenterApiException('Invalid progress log response.');
-    }
-    try {
-      final reports = decoded
-          .map((item) => MemberProgressLog.fromJson(_readObject(item)))
-          .toList();
-      reports.sort((a, b) {
-        final dateOrder = b.trainingDate.compareTo(a.trainingDate);
-        return dateOrder == 0 ? b.id.compareTo(a.id) : dateOrder;
-      });
-      return reports;
-    } on FormatException catch (error) {
-      throw CenterApiException(error.message);
-    }
+    return _parsePage(response.body, MemberProgressLog.fromJson);
   }
 
   Future<List<FitnessCenter>> getCenters() async {
@@ -448,34 +454,26 @@ class CenterApiService {
     }
   }
 
-  Future<List<GroupTraining>> getGroupTrainingsForCenter(
+  Future<PagedResult<GroupTraining>> getGroupTrainingsForCenter(
     int centerId, {
     String? search,
+    int pageNumber = 1,
+    int pageSize = 20,
   }) async {
     final query = search?.trim();
-    final path = query == null || query.isEmpty
-        ? '/api/centers/$centerId/group-trainings'
-        : '/api/centers/$centerId/group-trainings?search=${Uri.encodeQueryComponent(query)}';
+    final path = Uri(
+      path: '/api/centers/$centerId/group-trainings',
+      queryParameters: {
+        'pageNumber': '$pageNumber',
+        'pageSize': '$pageSize',
+        if (query != null && query.isNotEmpty) 'search': query,
+      },
+    ).toString();
     final response = await _get(path, authenticated: true);
-
     if (response.statusCode != 200) {
       throw const CenterApiException('Group trainings could not be loaded.');
     }
-
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const CenterApiException(
-        'Group trainings response was not in the expected format.',
-      );
-    }
-
-    try {
-      return decoded
-          .map((item) => GroupTraining.fromJson(_readObject(item)))
-          .toList(growable: false);
-    } on FormatException catch (error) {
-      throw CenterApiException(error.message);
-    }
+    return _parsePage(response.body, GroupTraining.fromJson);
   }
 
   Future<GroupTraining> getGroupTrainingForCenter(

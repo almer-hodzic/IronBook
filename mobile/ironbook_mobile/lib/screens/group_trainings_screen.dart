@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/group_training.dart';
+import '../models/paged_result.dart';
+import '../widgets/paging_controls.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
@@ -23,9 +25,10 @@ class GroupTrainingsScreen extends StatefulWidget {
 }
 
 class _GroupTrainingsScreenState extends State<GroupTrainingsScreen> {
-  late Future<List<GroupTraining>> _trainingsFuture;
+  late Future<PagedResult<GroupTraining>> _trainingsFuture;
   final _searchController = TextEditingController();
   String _activeSearch = '';
+  int _pageNumber = 1;
 
   @override
   void initState() {
@@ -39,11 +42,25 @@ class _GroupTrainingsScreenState extends State<GroupTrainingsScreen> {
     super.dispose();
   }
 
-  void _load({String? search}) {
+  @override
+  void didUpdateWidget(covariant GroupTrainingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.centerId != widget.centerId) {
+      _pageNumber = 1;
+      _load(search: _activeSearch);
+    }
+  }
+
+  void _load({String? search, bool resetPage = false}) {
     _activeSearch = search?.trim() ?? '';
-    _trainingsFuture = widget.centerApiService.getGroupTrainingsForCenter(
-      widget.centerId,
-      search: _activeSearch,
+    if (resetPage) _pageNumber = 1;
+    _trainingsFuture = loadAvailablePage(
+      _pageNumber,
+      (number) => widget.centerApiService.getGroupTrainingsForCenter(
+        widget.centerId,
+        search: _activeSearch,
+        pageNumber: number,
+      ),
     );
   }
 
@@ -83,14 +100,16 @@ class _GroupTrainingsScreenState extends State<GroupTrainingsScreen> {
           controller: _searchController,
           activeSearch: _activeSearch,
           onSearch: () {
-            setState(() => _load(search: _searchController.text));
+            setState(
+              () => _load(search: _searchController.text, resetPage: true),
+            );
           },
           onClear: () {
             _searchController.clear();
-            setState(_load);
+            setState(() => _load(resetPage: true));
           },
         ),
-        FutureBuilder<List<GroupTraining>>(
+        FutureBuilder<PagedResult<GroupTraining>>(
           future: _trainingsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -104,11 +123,26 @@ class _GroupTrainingsScreenState extends State<GroupTrainingsScreen> {
               );
             }
 
-            final trainings = snapshot.data ?? const <GroupTraining>[];
+            final page = snapshot.requireData;
+            _pageNumber = page.pageNumber;
+            final trainings = page.items;
+            final controls = PagingControls(
+              pageNumber: page.pageNumber,
+              totalPages: page.totalPages,
+              onPageChanged: (number) {
+                _pageNumber = number;
+                _retry();
+              },
+            );
             if (trainings.isEmpty) {
-              return _StateCard.empty(
-                activeSearch: _activeSearch,
-                onRetry: _retry,
+              return Column(
+                children: [
+                  _StateCard.empty(
+                    activeSearch: _activeSearch,
+                    onRetry: _retry,
+                  ),
+                  controls,
+                ],
               );
             }
 
@@ -121,6 +155,8 @@ class _GroupTrainingsScreenState extends State<GroupTrainingsScreen> {
                   ),
                   if (training != trainings.last) const SizedBox(height: 10),
                 ],
+                const SizedBox(height: 12),
+                controls,
               ],
             );
           },

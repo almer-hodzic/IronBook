@@ -1,3 +1,5 @@
+import 'support/paged_fixture.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -219,7 +221,7 @@ void main() {
       }
       expect(request.url.path, '/api/member/notifications');
       expect(request.headers['Authorization'], 'Bearer fixture-access-token');
-      return http.Response('[]', 200);
+      return http.Response(memberListBody(request, []), 200);
     }, tokens);
     await expectLater(
       api.createTrainingReport(
@@ -231,7 +233,7 @@ void main() {
       throwsA(isA<CenterApiException>()),
     );
     expect(tokens.reads, 1);
-    expect(await api.getMemberNotifications(), isEmpty);
+    expect((await api.getMemberNotifications()).items, isEmpty);
     expect(tokens.reads, 2);
     expect(requests, 2);
   });

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/member_notification.dart';
+import '../models/paged_result.dart';
+import '../widgets/paging_controls.dart';
 import '../services/center_api_service.dart';
 import '../widgets/ironbook_mobile_components.dart';
 
@@ -16,6 +18,8 @@ class MemberNotificationsScreen extends StatefulWidget {
 
 class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
   List<MemberNotification>? _notifications;
+  PagedResult<MemberNotification>? _page;
+  int _pageNumber = 1;
   final Set<int> _markingRead = {};
   final Map<int, String> _readErrors = {};
   bool _loading = false;
@@ -35,11 +39,16 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
       _readErrors.clear();
     });
     try {
-      final notifications = await widget.centerApiService
-          .getMemberNotifications();
+      final page = await loadAvailablePage(
+        _pageNumber,
+        (number) =>
+            widget.centerApiService.getMemberNotifications(pageNumber: number),
+      );
       if (!mounted) return;
       setState(() {
-        _notifications = notifications;
+        _notifications = page.items;
+        _page = page;
+        _pageNumber = page.pageNumber;
         _loading = false;
       });
     } catch (error) {
@@ -49,6 +58,12 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
         _loadError = error.toString();
       });
     }
+  }
+
+  void _changePage(int number) {
+    if (_loading || _markingRead.isNotEmpty) return;
+    _pageNumber = number;
+    _load();
   }
 
   Future<void> _markRead(MemberNotification notification) async {
@@ -67,11 +82,9 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _notifications =
-            _notifications!
-                .map((item) => item.id == updated.id ? updated : item)
-                .toList()
-              ..sort(MemberNotification.newestFirst);
+        _notifications = _notifications!
+            .map((item) => item.id == updated.id ? updated : item)
+            .toList();
         _markingRead.remove(notification.id);
       });
     } catch (error) {
@@ -103,7 +116,7 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
                 liveRegion: true,
                 child: IronBookTag(
                   label:
-                      '${notifications.where((item) => !item.isRead).length} unread',
+                      '${notifications.where((item) => !item.isRead).length} unread${(_page?.totalPages ?? 0) > 1 ? ' on this page' : ''}',
                   variant: IronBookTagVariant.accent,
                 ),
               ),
@@ -216,6 +229,13 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
                 ),
               ),
             ),
+        if (!_loading && _loadError == null && _page != null)
+          PagingControls(
+            pageNumber: _page!.pageNumber,
+            totalPages: _page!.totalPages,
+            busy: _markingRead.isNotEmpty,
+            onPageChanged: _changePage,
+          ),
       ],
     );
   }

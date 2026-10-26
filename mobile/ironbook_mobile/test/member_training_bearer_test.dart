@@ -1,3 +1,7 @@
+import 'support/paged_fixture.dart';
+
+import 'package:ironbook_mobile/models/paged_result.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -62,30 +66,32 @@ void main() {
         expect(request.body, isEmpty);
         queries.add(request.url.queryParameters);
         return http.Response(
-          jsonEncode([
-            for (final status in [
-              'Pending',
-              'Approved',
-              'Rejected',
-              'Cancelled',
-            ])
-              {
-                ...trainingJson,
-                'id':
-                    20 -
-                    [
-                      'Pending',
-                      'Approved',
-                      'Rejected',
-                      'Cancelled',
-                    ].indexOf(status),
-                'status': status,
-              },
-          ]),
+          jsonEncode(
+            paged([
+              for (final status in [
+                'Pending',
+                'Approved',
+                'Rejected',
+                'Cancelled',
+              ])
+                {
+                  ...trainingJson,
+                  'id':
+                      20 -
+                      [
+                        'Pending',
+                        'Approved',
+                        'Rejected',
+                        'Cancelled',
+                      ].indexOf(status),
+                  'status': status,
+                },
+            ]),
+          ),
           200,
         );
       }, tokens);
-      final result = await api.getMyTrainings();
+      final result = (await api.getMyTrainings()).items;
       expect(result.map((row) => row.id), [20, 19, 18, 17]);
       expect(result.map((row) => row.status), [
         'Pending',
@@ -107,8 +113,8 @@ void main() {
       tokens.token = 'new-token';
       await api.getMyTrainings(status: 'Approved');
       expect(queries, [
-        {},
-        {'status': 'Approved'},
+        {'pageNumber': '1', 'pageSize': '20'},
+        {'pageNumber': '1', 'pageSize': '20', 'status': 'Approved'},
       ]);
       expect(tokens.reads, 2);
     },
@@ -116,8 +122,11 @@ void main() {
 
   for (final name in ['My Trainings', 'Progress Log']) {
     test('$name retains empty list', () async {
-      final api = apiFor((_) async => http.Response('[]', 200));
-      expect(await calls[name]!(api), isEmpty);
+      final api = apiFor(
+        (_) async => http.Response(jsonEncode(paged([])), 200),
+      );
+      final page = await calls[name]!(api);
+      expect((page as PagedResult).items, isEmpty);
     });
   }
 
@@ -182,6 +191,8 @@ void main() {
           );
           expect(request.body, isEmpty);
           expect(request.url.queryParameters, {
+            'pageNumber': '1',
+            'pageSize': '20',
             if (from != null) 'fromDate': '2030-02-03',
             if (to != null)
               'toDate': filter == 'reversed' ? '2030-02-01' : '2030-02-04',
@@ -189,11 +200,13 @@ void main() {
           // Existing service forwards reversed ranges; screen/server validate them.
           if (filter == 'reversed') return http.Response('', 400);
           return http.Response(
-            jsonEncode([
-              {...report, 'id': 8, 'trainingDate': '2030-01-01T10:00:00Z'},
-              report,
-              {...report, 'id': 11},
-            ]),
+            jsonEncode(
+              paged([
+                {...report, 'id': 11},
+                report,
+                {...report, 'id': 8, 'trainingDate': '2030-01-01T10:00:00Z'},
+              ]),
+            ),
             200,
           );
         });
@@ -210,10 +223,10 @@ void main() {
           );
           return;
         }
-        final reports = await api.getMemberProgressLog(
+        final reports = (await api.getMemberProgressLog(
           fromDate: from,
           toDate: to,
-        );
+        )).items;
         expect(reports.map((row) => row.id), [11, 10, 8]);
         final row = reports.first;
         expect(row.trainingDate, DateTime.utc(2030, 2, 3, 10));
@@ -288,7 +301,7 @@ void main() {
       var requests = 0;
       final api = apiFor((_) async {
         requests++;
-        return http.Response('[]', 200);
+        return http.Response(jsonEncode(paged([])), 200);
       });
       await tester.binding.setSurfaceSize(const Size(600, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
