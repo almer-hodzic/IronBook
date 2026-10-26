@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/trainer_dashboard_request.dart';
+import '../models/paged_result.dart';
 import '../services/center_api_service.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
+import '../widgets/paging_controls.dart';
 import 'trainer_client_details_screen.dart';
 
 class TrainerDashboardScreen extends StatefulWidget {
@@ -21,18 +23,44 @@ class TrainerDashboardScreen extends StatefulWidget {
 }
 
 class _TrainerDashboardScreenState extends State<TrainerDashboardScreen> {
-  late Future<List<TrainerDashboardRequest>> _requestsFuture;
+  late Future<PagedResult<TrainerDashboardRequest>> _requestsFuture;
+  int _pageNumber = 1;
 
   @override
   void initState() {
     super.initState();
-    _requestsFuture = widget.centerApiService.getTrainerDashboardRequests();
+    _load();
   }
 
-  void _retry() {
-    setState(() {
-      _requestsFuture = widget.centerApiService.getTrainerDashboardRequests();
-    });
+  void _load() {
+    _requestsFuture = loadAvailablePage(
+      _pageNumber,
+      (number) => widget.centerApiService.getTrainerDashboardRequests(
+        pageNumber: number,
+      ),
+    );
+    // The lazy list may attach FutureBuilder after a fast failure completes.
+    // It still receives the same future and displays the error/retry state.
+    _requestsFuture.ignore();
+  }
+
+  void _retry() => setState(_load);
+
+  void _changePage(int number) {
+    _pageNumber = number;
+    _retry();
+  }
+
+  Future<void> _openRequest(TrainerDashboardRequest request) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => TrainerClientDetailsScreen(
+          centerApiService: widget.centerApiService,
+          requestId: request.id,
+        ),
+      ),
+    );
+    if (mounted) _retry();
   }
 
   @override
@@ -48,7 +76,7 @@ class _TrainerDashboardScreenState extends State<TrainerDashboardScreen> {
             if (widget.logoutAction != null) widget.logoutAction!,
           ]),
         ),
-        FutureBuilder<List<TrainerDashboardRequest>>(
+        FutureBuilder<PagedResult<TrainerDashboardRequest>>(
           future: _requestsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -62,16 +90,34 @@ class _TrainerDashboardScreenState extends State<TrainerDashboardScreen> {
               );
             }
 
-            final requests = snapshot.data ?? const <TrainerDashboardRequest>[];
+            final page = snapshot.requireData;
+            _pageNumber = page.pageNumber;
+            final requests = page.items;
+            final controls = PagingControls(
+              pageNumber: page.pageNumber,
+              totalPages: page.totalPages,
+              onPageChanged: _changePage,
+            );
             if (requests.isEmpty) {
-              return _StateCard.empty(
-                title: 'No approved requests',
-                message: 'You have no approved coaching requests at the moment.',
-                onRetry: _retry,
+              return Column(
+                children: [
+                  _StateCard.empty(
+                    title: 'No approved requests',
+                    message: 'You have no approved coaching requests at the moment.',
+                    onRetry: _retry,
+                  ),
+                  controls,
+                ],
               );
             }
 
-            return _RequestsSection(requests: requests);
+            return Column(
+              children: [
+                _RequestsSection(requests: requests, totalCount: page.totalCount),
+                const SizedBox(height: 12),
+                controls,
+              ],
+            );
           },
         ),
       ],
@@ -110,9 +156,10 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _RequestsSection extends StatelessWidget {
-  const _RequestsSection({required this.requests});
+  const _RequestsSection({required this.requests, required this.totalCount});
 
   final List<TrainerDashboardRequest> requests;
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +167,7 @@ class _RequestsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${requests.length} approved request${requests.length == 1 ? '' : 's'}',
+          '$totalCount approved request${totalCount == 1 ? '' : 's'}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -139,25 +186,10 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = _DateFormatter();
     final timeFormat = _TimeFormatter();
-    final service = context.findAncestorStateOfType<_TrainerDashboardScreenState>()
-        ?.widget
-        .centerApiService;
+    final dashboard = context.findAncestorStateOfType<_TrainerDashboardScreenState>();
 
     return InkWell(
-      onTap: () {
-        if (service == null) {
-          return;
-        }
-
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (context) => TrainerClientDetailsScreen(
-              centerApiService: service,
-              requestId: request.id,
-            ),
-          ),
-        );
-      },
+      onTap: dashboard == null ? null : () => dashboard._openRequest(request),
       borderRadius: BorderRadius.circular(18),
       child: IronBookMobileSection(
         child: Column(

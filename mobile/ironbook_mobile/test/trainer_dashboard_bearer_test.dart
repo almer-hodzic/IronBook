@@ -40,18 +40,23 @@ void main() {
       final api = apiFor((request) async {
         expect(request.method, 'GET');
         expect(request.url.path, '/api/trainer/dashboard/coaching-requests');
-        expect(request.url.hasQuery, isFalse);
+        expect(request.url.queryParameters, {
+          'pageNumber': '1',
+          'pageSize': '20',
+        });
         expect(request.body, isEmpty);
         expect(request.headers['Authorization'], 'Bearer fixture-access-token');
         return http.Response(
-          jsonEncode([
-            requestJson,
-            {...requestJson, 'id': 3},
-          ]),
+          jsonEncode(
+            paged([
+              requestJson,
+              {...requestJson, 'id': 3},
+            ]),
+          ),
           200,
         );
       });
-      final rows = await api.getTrainerDashboardRequests();
+      final rows = (await api.getTrainerDashboardRequests()).items;
       expect(rows.map((row) => row.id), [8, 3]);
       final row = rows.first;
       expect(row.memberName, 'Member One');
@@ -64,8 +69,8 @@ void main() {
   );
 
   test('Dashboard retains empty-list behavior', () async {
-    final api = apiFor((_) async => http.Response('[]', 200));
-    expect(await api.getTrainerDashboardRequests(), isEmpty);
+    final api = apiFor((_) async => http.Response(jsonEncode(paged([])), 200));
+    expect((await api.getTrainerDashboardRequests()).items, isEmpty);
   });
 
   for (final hasReport in [false, true]) {

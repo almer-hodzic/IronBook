@@ -669,11 +669,15 @@ class CenterApiService {
     throw const CenterApiException('Training request could not be submitted.');
   }
 
-  Future<List<TrainerDashboardRequest>> getTrainerDashboardRequests() async {
-    final response = await _get(
-      '/api/trainer/dashboard/coaching-requests',
-      authenticated: true,
-    );
+  Future<PagedResult<TrainerDashboardRequest>> getTrainerDashboardRequests({
+    int pageNumber = 1,
+    int pageSize = 20,
+  }) async {
+    final path = Uri(
+      path: '/api/trainer/dashboard/coaching-requests',
+      queryParameters: {'pageNumber': '$pageNumber', 'pageSize': '$pageSize'},
+    ).toString();
+    final response = await _get(path, authenticated: true);
 
     if (response.statusCode != 200) {
       throw CenterApiException(
@@ -682,20 +686,7 @@ class CenterApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const CenterApiException(
-        'Trainer dashboard response was not in the expected format.',
-      );
-    }
-
-    try {
-      return decoded
-          .map((item) => TrainerDashboardRequest.fromJson(_readObject(item)))
-          .toList(growable: false);
-    } on FormatException catch (error) {
-      throw CenterApiException(error.message);
-    }
+    return _parsePage(response.body, TrainerDashboardRequest.fromJson);
   }
 
   Future<TrainerClientDetails> getTrainerClientDetails(int requestId) async {

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'paged_fixture.dart';
+
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -71,7 +73,12 @@ class AuthFixture {
         } else if (request.headers.containsKey('Authorization')) {
           throw StateError('Unexpected feature auth migration');
         }
-        return http.Response('[]', 200);
+        return http.Response(
+          request.url.path == '/api/trainer/dashboard/coaching-requests'
+              ? jsonEncode(paged([]))
+              : '[]',
+          200,
+        );
       }),
     ),
   );
