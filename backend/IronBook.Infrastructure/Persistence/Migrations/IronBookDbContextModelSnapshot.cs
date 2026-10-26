@@ -173,6 +173,56 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.ToTable("CheckIns");
                 });
 
+            modelBuilder.Entity("IronBook.Domain.Entities.CoachingRequestStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ChangedByAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("FromTrainerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ToTrainerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TrainingRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByAccountId");
+
+                    b.HasIndex("FromTrainerProfileId");
+
+                    b.HasIndex("ToTrainerProfileId");
+
+                    b.HasIndex("TrainingRequestId", "ChangedAt");
+
+                    b.ToTable("CoachingRequestStatusHistory");
+                });
+
             modelBuilder.Entity("IronBook.Domain.Entities.GroupTraining", b =>
                 {
                     b.Property<int>("Id")
@@ -358,6 +408,10 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.HasIndex("MembershipPlanId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("MemberProfileId", "CenterId", "MembershipPlanId")
+                        .IsUnique()
+                        .HasFilter("[Status] IN ('Active', 'Pending')");
 
                     b.ToTable("Memberships");
                 });
@@ -775,6 +829,8 @@ namespace IronBook.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CenterId", "TrainerProfileId", "RequestedStartAt");
 
+                    b.HasIndex("TrainerProfileId", "Status", "RequestedStartAt");
+
                     b.ToTable("TrainingRequests");
                 });
 
@@ -823,6 +879,32 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                     b.Navigation("Center");
 
                     b.Navigation("Membership");
+                });
+
+            modelBuilder.Entity("IronBook.Domain.Entities.CoachingRequestStatusHistory", b =>
+                {
+                    b.HasOne("IronBook.Domain.Entities.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedByAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("IronBook.Domain.Entities.TrainerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("FromTrainerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IronBook.Domain.Entities.TrainerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ToTrainerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IronBook.Domain.Entities.TrainingRequest", null)
+                        .WithMany()
+                        .HasForeignKey("TrainingRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("IronBook.Domain.Entities.GroupTraining", b =>

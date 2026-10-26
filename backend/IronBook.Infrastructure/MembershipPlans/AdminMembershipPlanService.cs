@@ -22,7 +22,9 @@ public sealed class AdminMembershipPlanService : IAdminMembershipPlanService
         string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbContext.MembershipPlans.AsNoTracking();
+        var query = _dbContext.MembershipPlans.AsNoTracking()
+            .Include(plan => plan.MembershipPlanCenters).ThenInclude(assignment => assignment.Center)
+            .AsQueryable();
         var trimmedSearch = search?.Trim();
 
         if (!string.IsNullOrWhiteSpace(trimmedSearch))
@@ -43,6 +45,7 @@ public sealed class AdminMembershipPlanService : IAdminMembershipPlanService
     {
         return await _dbContext.MembershipPlans
             .AsNoTracking()
+            .Include(plan => plan.MembershipPlanCenters).ThenInclude(assignment => assignment.Center)
             .Where(plan => plan.Id == id)
             .Select(plan => ToAdminDto(plan))
             .SingleOrDefaultAsync(cancellationToken);

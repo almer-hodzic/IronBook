@@ -10,5 +10,5 @@ public interface IMemberMyTrainingsService
 
     Task<MemberTrainingCancellationResult> CancelAsync(
         int id,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, string? reason = null);
 }

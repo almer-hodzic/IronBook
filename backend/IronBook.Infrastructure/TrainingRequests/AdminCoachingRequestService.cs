@@ -1,4 +1,6 @@
 using IronBook.Application.TrainingRequests;
+using IronBook.Application.Auth;
+using IronBook.Domain.Rules;
 using IronBook.Application.Notifications;
 using System.Text.Json;
 using IronBook.Domain.Entities;
@@ -12,9 +14,12 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
 {
     private readonly IronBookDbContext _dbContext;
 
-    public AdminCoachingRequestService(IronBookDbContext dbContext)
+    private readonly ICurrentAccountContext? _currentAccount;
+
+    public AdminCoachingRequestService(IronBookDbContext dbContext, ICurrentAccountContext? currentAccount = null)
     {
         _dbContext = dbContext;
+        _currentAccount = currentAccount;
     }
 
     public async Task<IReadOnlyList<AdminCoachingRequestDto>> GetCoachingRequestsAsync(
@@ -83,16 +88,16 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
 
     public async Task<AdminCoachingRequestActionResult> RejectAsync(
         int id,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? reason = null)
     {
-        return await UpdateStatusAsync(id, TrainingRequestStatus.Rejected, cancellationToken);
+        return await UpdateStatusAsync(id, TrainingRequestStatus.Rejected, cancellationToken, reason);
     }
 
     public async Task<AdminCoachingRequestActionResult> CancelAsync(
         int id,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? reason = null)
     {
-        return await UpdateStatusAsync(id, TrainingRequestStatus.Cancelled, cancellationToken);
+        return await UpdateStatusAsync(id, TrainingRequestStatus.Cancelled, cancellationToken, reason);
     }
 
     public async Task<AdminCoachingRequestActionResult> ReassignTrainerAsync(
@@ -100,6 +105,8 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         int trainerProfileId,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
         var request = await _dbContext.TrainingRequests
             .Include(request => request.Center)
             .Include(request => request.TrainerProfile)
@@ -110,6 +117,10 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         {
             return AdminCoachingRequestActionResult.Missing();
         }
+
+        if (!CoachingRequestRules.CanReassign(request.Status))
+            return AdminCoachingRequestActionResult.ConflictResult(
+                [new TrainingRequestValidationError("Status", "Only Pending or Approved requests can be reassigned.")]);
 
         if (trainerProfileId <= 0)
         {
@@ -132,7 +143,7 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             .AnyAsync(assignment =>
                 assignment.TrainerProfileId == trainerProfileId &&
                 assignment.CenterId == request.CenterId &&
-                assignment.IsActive,
+                assignment.IsActive && assignment.Center.IsActive,
                 cancellationToken);
 
         if (!isAssignedToCenter)
@@ -141,36 +152,22 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
                 [new TrainingRequestValidationError("TrainerProfileId", "Trainer is not assigned to this center.")]);
         }
 
-        if (request.Status is TrainingRequestStatus.Pending or TrainingRequestStatus.Approved)
-        {
-            var conflicts = await _dbContext.TrainingRequests
-                .AsNoTracking()
-                .AnyAsync(existing =>
-                    existing.Id != request.Id &&
-                    existing.CenterId == request.CenterId &&
-                    existing.TrainerProfileId == trainerProfileId &&
-                    existing.RequestedStartAt == request.RequestedStartAt &&
-                    existing.Status != TrainingRequestStatus.Rejected &&
-                    existing.Status != TrainingRequestStatus.Cancelled,
-                    cancellationToken);
-
-            if (conflicts)
-            {
-                return AdminCoachingRequestActionResult.ConflictResult(
-                    [new TrainingRequestValidationError(
-                        "TrainerProfileId",
-                        "Selected trainer already has a booking at this slot.")]);
-            }
-        }
+        if (await TrainingSchedule.ConflictsAsync(_dbContext, trainerProfileId, request.RequestedStartAt,
+            request.DurationMinutes, cancellationToken, request.Id))
+            return AdminCoachingRequestActionResult.ConflictResult(
+                [new TrainingRequestValidationError("TrainerProfileId", "Selected trainer already has an overlapping booking.")]);
 
         if (request.TrainerProfileId == trainerProfileId)
             return AdminCoachingRequestActionResult.Success(ToDto(request));
 
+        var fromTrainerId = request.TrainerProfileId;
         request.TrainerProfile = trainer;
         request.TrainerProfileId = trainerProfileId;
         request.UpdatedAt = DateTime.UtcNow;
+        CoachingRequestHistory.Add(_dbContext, request, request.Status, fromTrainerId, _currentAccount?.AccountId);
         EnqueueNotification(request, "Reassigned");
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return AdminCoachingRequestActionResult.Success(ToDto(request));
     }
@@ -178,8 +175,12 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
     private async Task<AdminCoachingRequestActionResult> UpdateStatusAsync(
         int id,
         TrainingRequestStatus targetStatus,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, string? reason = null)
     {
+        if (reason?.Trim().Length > 1000)
+            return AdminCoachingRequestActionResult.Invalid([new TrainingRequestValidationError("Reason", "Reason must be 1000 characters or fewer.")]);
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
         var request = await _dbContext.TrainingRequests
             .Include(request => request.Center)
             .Include(request => request.TrainerProfile)
@@ -191,17 +192,23 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         }
 
         var currentStatus = request.Status;
-        var validTransition = IsValidStatusTransition(currentStatus, targetStatus);
+        var validTransition = CoachingRequestRules.CanTransition(currentStatus, targetStatus);
         if (!validTransition)
         {
-            return AdminCoachingRequestActionResult.Invalid(
+            return AdminCoachingRequestActionResult.ConflictResult(
                 [new TrainingRequestValidationError("Status", $"Invalid status transition from {currentStatus} to {targetStatus}.")]);
         }
 
+        if (targetStatus == TrainingRequestStatus.Approved && await TrainingSchedule.ConflictsAsync(
+            _dbContext, request.TrainerProfileId, request.RequestedStartAt, request.DurationMinutes, cancellationToken, request.Id))
+            return AdminCoachingRequestActionResult.ConflictResult([new TrainingRequestValidationError("RequestedStartAt", "Trainer has an overlapping booking.")]);
+
         request.Status = targetStatus;
         request.UpdatedAt = DateTime.UtcNow;
+        CoachingRequestHistory.Add(_dbContext, request, currentStatus, request.TrainerProfileId, _currentAccount?.AccountId, reason);
         EnqueueNotification(request, targetStatus.ToString());
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var updatedRequest = await _dbContext.TrainingRequests
             .AsNoTracking()
@@ -227,20 +234,6 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             Payload = JsonSerializer.Serialize(message),
             CreatedAt = occurredAt
         });
-    }
-
-    private static bool IsValidStatusTransition(
-        TrainingRequestStatus currentStatus,
-        TrainingRequestStatus targetStatus)
-    {
-        return currentStatus switch
-        {
-            TrainingRequestStatus.Pending => targetStatus is TrainingRequestStatus.Approved or TrainingRequestStatus.Rejected or TrainingRequestStatus.Cancelled,
-            TrainingRequestStatus.Approved => targetStatus is TrainingRequestStatus.Rejected or TrainingRequestStatus.Cancelled,
-            TrainingRequestStatus.Rejected => false,
-            TrainingRequestStatus.Cancelled => false,
-            _ => false
-        };
     }
 
     private static AdminCoachingRequestDto ToDto(TrainingRequest request)

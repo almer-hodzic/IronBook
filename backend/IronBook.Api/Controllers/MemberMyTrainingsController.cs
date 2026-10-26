@@ -36,9 +36,11 @@ public sealed class MemberMyTrainingsController : ControllerBase
     }
 
     [HttpPost("{id:int}/cancel")]
-    public async Task<ActionResult<TrainingRequestDto>> Cancel(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<TrainingRequestDto>> Cancel(int id,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CoachingRequestActionRequest? request,
+        CancellationToken cancellationToken)
     {
-        var result = await _myTrainingsService.CancelAsync(id, cancellationToken);
+        var result = await _myTrainingsService.CancelAsync(id, cancellationToken, request?.Reason);
         return result.Failure switch
         {
             MemberTrainingCancellationFailure.NotFound => NotFound(),

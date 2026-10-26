@@ -109,6 +109,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<IronBook.Api.WorkflowConflictMiddleware>();
 
 app.MapControllers();
 

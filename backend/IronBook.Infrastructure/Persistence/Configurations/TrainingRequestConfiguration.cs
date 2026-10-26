@@ -38,6 +38,7 @@ public class TrainingRequestConfiguration : IEntityTypeConfiguration<TrainingReq
         builder.HasIndex(request => request.MemberProfileId);
         builder.HasIndex(request => request.RequestedStartAt);
         builder.HasIndex(request => request.Status);
+        builder.HasIndex(request => new { request.TrainerProfileId, request.Status, request.RequestedStartAt });
         builder.HasIndex(request => new
         {
             request.CenterId,

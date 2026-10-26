@@ -107,6 +107,8 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         AdminGroupTrainingUpsertRequest request,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, $"IronBook:group-enrollment:{id}", cancellationToken);
         var training = await _dbContext.GroupTrainings
             .SingleOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 
@@ -135,6 +137,7 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         training.WhoFor = values.WhoFor;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = await GetGroupTrainingByIdAsync(training.Id, cancellationToken);
         return AdminGroupTrainingSaveResult.Success(dto!);

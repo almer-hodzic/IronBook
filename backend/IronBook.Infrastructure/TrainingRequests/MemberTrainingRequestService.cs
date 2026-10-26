@@ -54,16 +54,15 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
         var reservedStarts = await _dbContext.TrainingRequests
             .AsNoTracking()
             .Where(request =>
-                request.CenterId == centerId &&
                 request.TrainerProfileId == trainerId &&
-                request.RequestedStartAt >= rangeStart &&
+                request.RequestedStartAt.AddMinutes(request.DurationMinutes) > rangeStart &&
                 request.RequestedStartAt < rangeEnd &&
                 request.Status != TrainingRequestStatus.Cancelled &&
                 request.Status != TrainingRequestStatus.Rejected)
-            .Select(request => request.RequestedStartAt)
+            .Select(request => new ReservedInterval(request.RequestedStartAt, request.DurationMinutes))
             .ToListAsync(cancellationToken);
 
-        var reserved = reservedStarts.ToHashSet();
+        var reserved = reservedStarts;
         var now = DateTime.UtcNow;
         var days = new List<TrainingAvailabilityDayDto>();
 
@@ -105,6 +104,9 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
                 [new TrainingRequestValidationError("Member", "Member profile was not found.")]);
         }
 
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
+
         if (!await TrainerIsAvailableForCenterAsync(centerId, trainerId, cancellationToken))
         {
             return TrainingRequestCreateResult.Missing("Trainer is not available for this center.");
@@ -123,7 +125,7 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
                 [new TrainingRequestValidationError("RequestedStartAt", "Select a future trainer slot.")]);
         }
 
-        if (await SlotIsReservedAsync(centerId, trainerId, requestedStartAt, cancellationToken))
+        if (await TrainingSchedule.ConflictsAsync(_dbContext, trainerId, requestedStartAt, DurationMinutes, cancellationToken))
         {
             return TrainingRequestCreateResult.SlotConflict("This trainer slot is already booked.");
         }
@@ -143,6 +145,7 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
 
         _dbContext.TrainingRequests.Add(trainingRequest);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = await GetRequestDtoAsync(trainingRequest.Id, cancellationToken);
         return TrainingRequestCreateResult.Success(dto!);
@@ -162,23 +165,6 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
                     assignment.CenterId == centerId &&
                     assignment.IsActive &&
                     assignment.Center.IsActive),
-                cancellationToken);
-    }
-
-    private async Task<bool> SlotIsReservedAsync(
-        int centerId,
-        int trainerId,
-        DateTime requestedStartAt,
-        CancellationToken cancellationToken)
-    {
-        return await _dbContext.TrainingRequests
-            .AsNoTracking()
-            .AnyAsync(existing =>
-                existing.CenterId == centerId &&
-                existing.TrainerProfileId == trainerId &&
-                existing.RequestedStartAt == requestedStartAt &&
-                existing.Status != TrainingRequestStatus.Cancelled &&
-                existing.Status != TrainingRequestStatus.Rejected,
                 cancellationToken);
     }
 
@@ -227,12 +213,13 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
     private static TrainingAvailabilitySlotDto ToSlotDto(
         DateOnly date,
         TimeOnly time,
-        ISet<DateTime> reserved,
+        IReadOnlyList<ReservedInterval> reserved,
         DateTime now)
     {
         var startsAt = ToUtcDateTime(date, time);
         var isPast = startsAt <= now;
-        var isBooked = reserved.Contains(startsAt);
+        var isBooked = reserved.Any(interval => interval.Start < startsAt.AddMinutes(DurationMinutes)
+            && interval.Start.AddMinutes(interval.DurationMinutes) > startsAt);
         var isAvailable = !isPast && !isBooked;
         var status = isAvailable ? "Free" : isBooked ? "Booked" : "Unavailable";
 
@@ -285,6 +272,8 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
             ? value
             : DateTime.SpecifyKind(value, DateTimeKind.Utc);
     }
+
+    private sealed record ReservedInterval(DateTime Start, int DurationMinutes);
 
     private static string GetPeriod(TimeOnly time)
     {

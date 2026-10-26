@@ -42,6 +42,8 @@ public class IronBookDbContext : DbContext
 
     public DbSet<GroupTrainingEnrollment> GroupTrainingEnrollments => Set<GroupTrainingEnrollment>();
 
+    public DbSet<CoachingRequestStatusHistory> CoachingRequestStatusHistory => Set<CoachingRequestStatusHistory>();
+
     public DbSet<TrainingRequest> TrainingRequests => Set<TrainingRequest>();
 
     public DbSet<TrainingReport> TrainingReports => Set<TrainingReport>();

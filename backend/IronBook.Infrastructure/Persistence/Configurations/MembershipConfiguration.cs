@@ -34,5 +34,7 @@ public class MembershipConfiguration : IEntityTypeConfiguration<Membership>
         builder.HasIndex(membership => membership.MembershipPlanId);
 
         builder.HasIndex(membership => membership.Status);
+        builder.HasIndex(membership => new { membership.MemberProfileId, membership.CenterId, membership.MembershipPlanId })
+            .IsUnique().HasFilter("[Status] IN ('Active', 'Pending')");
     }
 }

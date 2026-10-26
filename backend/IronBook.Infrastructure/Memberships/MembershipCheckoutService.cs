@@ -37,6 +37,9 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
                 [new MembershipCheckoutValidationError("Member", "Member profile was not found.")]);
         }
 
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, $"IronBook:checkout:{member.Id}:{request.CenterId}:{request.MembershipPlanId}", cancellationToken);
+
         var center = await _dbContext.Centers
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -80,8 +83,6 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
             return MembershipCheckoutResult.Duplicate(
                 "An active or pending membership already exists for this member, center, and plan.");
         }
-
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var utcNow = DateTime.UtcNow;
         var startDate = utcNow.Date;

@@ -13,11 +13,11 @@ public interface IAdminCoachingRequestService
 
     Task<AdminCoachingRequestActionResult> RejectAsync(
         int id,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, string? reason = null);
 
     Task<AdminCoachingRequestActionResult> CancelAsync(
         int id,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, string? reason = null);
 
     Task<AdminCoachingRequestActionResult> ReassignTrainerAsync(
         int id,

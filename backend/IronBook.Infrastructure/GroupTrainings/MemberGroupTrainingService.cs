@@ -80,6 +80,9 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
                 "Member profile was not found.");
         }
 
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, $"IronBook:group-enrollment:{groupTrainingId}", cancellationToken);
+
         var training = await _dbContext.GroupTrainings
             .Include(candidate => candidate.Center)
             .Include(candidate => candidate.Enrollments)
@@ -130,6 +133,7 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
 
         _dbContext.GroupTrainingEnrollments.Add(enrollment);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return GroupTrainingEnrollmentResult.Success(new GroupTrainingEnrollmentDto(
             enrollment.Id,

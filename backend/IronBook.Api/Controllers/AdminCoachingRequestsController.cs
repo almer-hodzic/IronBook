@@ -44,9 +44,10 @@ public sealed class AdminCoachingRequestsController : ControllerBase
     [HttpPost("{id:int}/reject")]
     public async Task<ActionResult<AdminCoachingRequestDto>> RejectRequest(
         int id,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CoachingRequestActionRequest? request,
         CancellationToken cancellationToken)
     {
-        var result = await _coachingRequestService.RejectAsync(id, cancellationToken);
+        var result = await _coachingRequestService.RejectAsync(id, cancellationToken, request?.Reason);
 
         return ToActionResult(result);
     }
@@ -54,9 +55,10 @@ public sealed class AdminCoachingRequestsController : ControllerBase
     [HttpPost("{id:int}/cancel")]
     public async Task<ActionResult<AdminCoachingRequestDto>> CancelRequest(
         int id,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CoachingRequestActionRequest? request,
         CancellationToken cancellationToken)
     {
-        var result = await _coachingRequestService.CancelAsync(id, cancellationToken);
+        var result = await _coachingRequestService.CancelAsync(id, cancellationToken, request?.Reason);
 
         return ToActionResult(result);
     }
