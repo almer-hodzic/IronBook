@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -30,11 +32,21 @@ class AdminTrainerApiService {
 
   final http.Client _client;
 
-  Future<List<AdminTrainer>> getTrainers({String? search}) async {
+  Future<PagedResult<AdminTrainer>> getTrainers({
+    String? search,
+    int pageNumber = 1,
+    int? pageSize,
+  }) async {
     final query = search?.trim();
-    final path = query == null || query.isEmpty
-        ? '/api/admin/trainers'
-        : '/api/admin/trainers?search=${Uri.encodeQueryComponent(query)}';
+    final params = <String, String>{
+      'pageNumber': '$pageNumber',
+      if (pageSize != null) 'pageSize': '$pageSize',
+      if (query != null && query.isNotEmpty) 'search': query,
+    };
+    final path = Uri(
+      path: '/api/admin/trainers',
+      queryParameters: params,
+    ).toString();
     final response = await _get(path);
 
     if (response.statusCode != 200) {
@@ -44,17 +56,11 @@ class AdminTrainerApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminTrainerApiException(
-        'Trainers response was not in the expected format.',
-      );
-    }
-
     try {
-      return decoded
-          .map((item) => AdminTrainer.fromJson(readAdminTrainerObject(item)))
-          .toList(growable: false);
+      return PagedResult.fromJson(
+        _decodeJson(response.body),
+        AdminTrainer.fromJson,
+      );
     } on FormatException catch (error) {
       throw AdminTrainerApiException(error.message);
     }

@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -30,11 +32,21 @@ class AdminMembershipPlanApiService {
 
   final http.Client _client;
 
-  Future<List<AdminMembershipPlan>> getMembershipPlans({String? search}) async {
+  Future<PagedResult<AdminMembershipPlan>> getMembershipPlans({
+    String? search,
+    int pageNumber = 1,
+    int? pageSize,
+  }) async {
     final query = search?.trim();
-    final path = query == null || query.isEmpty
-        ? '/api/admin/membership-plans'
-        : '/api/admin/membership-plans?search=${Uri.encodeQueryComponent(query)}';
+    final params = <String, String>{
+      'pageNumber': '$pageNumber',
+      if (pageSize != null) 'pageSize': '$pageSize',
+      if (query != null && query.isNotEmpty) 'search': query,
+    };
+    final path = Uri(
+      path: '/api/admin/membership-plans',
+      queryParameters: params,
+    ).toString();
     final response = await _get(path);
 
     if (response.statusCode != 200) {
@@ -44,17 +56,11 @@ class AdminMembershipPlanApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminMembershipPlanApiException(
-        'Membership plans response was not in the expected format.',
-      );
-    }
-
     try {
-      return decoded
-          .map((item) => AdminMembershipPlan.fromJson(_readObject(item)))
-          .toList(growable: false);
+      return PagedResult.fromJson(
+        _decodeJson(response.body),
+        AdminMembershipPlan.fromJson,
+      );
     } on FormatException catch (error) {
       throw AdminMembershipPlanApiException(error.message);
     }

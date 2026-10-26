@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -54,11 +56,18 @@ class AdminReportsApiService {
         .toList();
   });
 
-  Future<List<AdminCenter>> getFilterCenters() async => _parse(() async {
-    final data = await _get('/api/admin/centers', const AdminReportFilter());
-    if (data is! List) throw const FormatException('Invalid centers response.');
-    return data.map((item) => AdminCenter.fromJson(_object(item))).toList();
-  });
+  Future<List<AdminCenter>> getFilterCenters() async => _parse(
+    () => loadAllPages(
+      (page) async => PagedResult.fromJson(
+        await _get(
+          '/api/admin/centers',
+          const AdminReportFilter(),
+          query: {'pageNumber': '$page', 'pageSize': '100'},
+        ),
+        AdminCenter.fromJson,
+      ),
+    ),
+  );
 
   Future<T> _parse<T>(Future<T> Function() action) async {
     try {
@@ -73,15 +82,22 @@ class AdminReportsApiService {
     throw const FormatException('Invalid reports response.');
   }
 
-  Future<Object?> _get(String path, AdminReportFilter filter) async {
+  Future<Object?> _get(
+    String path,
+    AdminReportFilter filter, {
+    Map<String, String> query = const {},
+  }) async {
     if (_baseUrl.isEmpty) {
       throw const AdminReportsApiException(
         'Configure API_BASE_URL to load reports.',
       );
     }
     try {
-      final uri = Uri.parse('$_baseUrl$path')
-          .replace(queryParameters: filter.query.isEmpty ? null : filter.query);
+      final uri = Uri.parse('$_baseUrl$path').replace(
+        queryParameters: {...filter.query, ...query}.isEmpty
+            ? null
+            : {...filter.query, ...query},
+      );
       final response = await _client
           .get(uri)
           .timeout(const Duration(seconds: 15));

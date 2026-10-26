@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -31,11 +33,16 @@ class AdminCoachingRequestApiService {
 
   final http.Client _client;
 
-  Future<List<AdminCoachingRequest>> getCoachingRequests({
+  Future<PagedResult<AdminCoachingRequest>> getCoachingRequests({
+    int pageNumber = 1,
+    int? pageSize,
     String? search,
     String? status,
   }) async {
-    final params = <String>[];
+    final params = <String>[
+      'pageNumber=$pageNumber',
+      if (pageSize != null) 'pageSize=$pageSize',
+    ];
     final trimmedSearch = search?.trim();
     final trimmedStatus = status?.trim();
 
@@ -59,21 +66,11 @@ class AdminCoachingRequestApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminCoachingRequestApiException(
-        'Coaching requests response was not in the expected format.',
-      );
-    }
-
     try {
-      return decoded
-          .map(
-            (item) => AdminCoachingRequest.fromJson(
-              readAdminCoachingRequestObject(item),
-            ),
-          )
-          .toList(growable: false);
+      return PagedResult.fromJson(
+        _decodeJson(response.body),
+        AdminCoachingRequest.fromJson,
+      );
     } on FormatException catch (error) {
       throw AdminCoachingRequestApiException(error.message);
     }
@@ -172,25 +169,25 @@ class AdminCoachingRequestApiService {
   }
 
   Future<List<AdminTrainer>> _getTrainers() async {
-    final response = await _get('/api/admin/trainers');
-
-    if (response.statusCode != 200) {
-      throw AdminCoachingRequestApiException(
-        'Trainer options could not be loaded.',
-        statusCode: response.statusCode,
-      );
+    try {
+      return await loadAllPages((page) async {
+        final response = await _get(
+          '/api/admin/trainers?pageNumber=$page&pageSize=100',
+        );
+        if (response.statusCode != 200) {
+          throw AdminCoachingRequestApiException(
+            'Trainer options could not be loaded.',
+            statusCode: response.statusCode,
+          );
+        }
+        return PagedResult.fromJson(
+          _decodeJson(response.body),
+          AdminTrainer.fromJson,
+        );
+      });
+    } on FormatException catch (error) {
+      throw AdminCoachingRequestApiException(error.message);
     }
-
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminCoachingRequestApiException(
-        'Trainer response was not in the expected format.',
-      );
-    }
-
-    return decoded
-        .map((item) => AdminTrainer.fromJson(readAdminTrainerObject(item)))
-        .toList(growable: false);
   }
 
   Future<http.Response> _get(String path) async {

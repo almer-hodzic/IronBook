@@ -56,7 +56,7 @@ class _MembershipPlanFormScreenState extends State<MembershipPlanFormScreen> {
   }
 
   Future<_PlanFormData> _loadFormData() async {
-    final centersFuture = widget.centerApiService.getCenters();
+    final centersFuture = widget.centerApiService.getAllCenters();
     final planId = widget.planId;
 
     if (planId == null) {

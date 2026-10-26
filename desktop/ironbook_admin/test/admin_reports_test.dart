@@ -1,3 +1,5 @@
+import 'support/paged_response.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -43,7 +45,7 @@ http.Response responseFor(http.Request request, {bool empty = false}) =>
       jsonEncode(switch (request.url.path) {
         '/api/admin/reports/summary' => summary(empty: empty),
         '/api/admin/reports/centers' => empty ? [] : [activity],
-        '/api/admin/centers' => [center],
+        '/api/admin/centers' => pagedResponse([center], pageSize: 100),
         _ => throw StateError('Unexpected URL ${request.url}'),
       }),
       200,
@@ -189,7 +191,12 @@ void main() {
       await tap(tester, 'Clear filters');
       expect(requests.length, 3);
       for (final request in requests) {
-        expect(request.url.queryParameters, isEmpty);
+        expect(
+          request.url.queryParameters,
+          request.url.path == '/api/admin/centers'
+              ? {'pageNumber': '1', 'pageSize': '100'}
+              : isEmpty,
+        );
       }
       expect(
         tester

@@ -76,7 +76,7 @@ class _GroupTrainingFormScreenState extends State<GroupTrainingFormScreen> {
   }
 
   Future<_GroupTrainingFormData> _loadFormData() async {
-    final centersFuture = widget.centerApiService.getCenters();
+    final centersFuture = widget.centerApiService.getAllCenters();
     final id = widget.groupTrainingId;
 
     final centers = await centersFuture;

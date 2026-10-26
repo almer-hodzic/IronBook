@@ -1,3 +1,6 @@
+import '../models/paged_result.dart';
+import '../widgets/admin_paging_controls.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/admin_center.dart';
@@ -20,6 +23,8 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
   int? _centerId;
   AdminPaymentFilter _applied = const AdminPaymentFilter();
   List<AdminPayment> _payments = [];
+  PagedResult<AdminPayment>? _paymentPage;
+  int _pageNumber = 1;
   List<AdminCenter> _centers = [];
   bool _loading = true;
   int? _confirmingId;
@@ -47,12 +52,20 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
     });
     try {
       final result = await Future.wait<Object>([
-        widget.paymentApiService.getPayments(_applied),
+        loadAvailablePage(
+          _pageNumber,
+          (number) => widget.paymentApiService.getPayments(
+            _applied,
+            pageNumber: number,
+          ),
+        ),
         widget.paymentApiService.getCenters(),
       ]);
       if (!mounted) return;
       setState(() {
-        _payments = result[0] as List<AdminPayment>;
+        _paymentPage = result[0] as PagedResult<AdminPayment>;
+        _payments = _paymentPage!.items;
+        _pageNumber = _paymentPage!.pageNumber;
         _centers = result[1] as List<AdminCenter>;
         _loading = false;
       });
@@ -67,6 +80,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
 
   void _apply() {
     if (_busy) return;
+    _pageNumber = 1;
     _applied = AdminPaymentFilter(
       search: _search.text,
       status: _status,
@@ -365,6 +379,15 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
               ],
             ),
           ),
+        ),
+      if (!_loading && _error == null && _paymentPage != null)
+        AdminPagingControls(
+          page: _paymentPage!,
+          enabled: !_busy,
+          onPageChanged: (number) {
+            _pageNumber = number;
+            _load();
+          },
         ),
     ],
   );

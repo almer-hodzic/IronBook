@@ -1,3 +1,6 @@
+import '../models/paged_result.dart';
+import '../widgets/admin_paging_controls.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/admin_group_training.dart';
@@ -28,11 +31,13 @@ class MembershipPlansScreen extends StatefulWidget {
 }
 
 class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
-  late Future<List<AdminMembershipPlan>> _plansFuture;
-  late Future<List<AdminGroupTraining>> _groupTrainingsFuture;
+  late Future<PagedResult<AdminMembershipPlan>> _plansFuture;
+  late Future<PagedResult<AdminGroupTraining>> _groupTrainingsFuture;
   final _searchController = TextEditingController();
   final _groupSearchController = TextEditingController();
+  int _plansPageNumber = 1;
   String _activeSearch = '';
+  int _groupsPageNumber = 1;
   String _activeGroupSearch = '';
 
   @override
@@ -49,20 +54,34 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
     super.dispose();
   }
 
-  void _loadPlans({String? search}) {
+  void _loadPlans({String? search, int? pageNumber}) {
     setState(() {
-      _activeSearch = search?.trim() ?? '';
-      _plansFuture = widget.membershipPlanApiService.getMembershipPlans(
-        search: _activeSearch,
+      final nextSearch = search?.trim() ?? '';
+      if (nextSearch != _activeSearch) _plansPageNumber = 1;
+      if (pageNumber != null) _plansPageNumber = pageNumber;
+      _activeSearch = nextSearch;
+      _plansFuture = loadAvailablePage(
+        _plansPageNumber,
+        (number) => widget.membershipPlanApiService.getMembershipPlans(
+          pageNumber: number,
+          search: _activeSearch,
+        ),
       );
     });
   }
 
-  void _loadGroupTrainings({String? search}) {
+  void _loadGroupTrainings({String? search, int? pageNumber}) {
     setState(() {
-      _activeGroupSearch = search?.trim() ?? '';
-      _groupTrainingsFuture = widget.groupTrainingApiService.getGroupTrainings(
-        search: _activeGroupSearch,
+      final nextSearch = search?.trim() ?? '';
+      if (nextSearch != _activeGroupSearch) _groupsPageNumber = 1;
+      if (pageNumber != null) _groupsPageNumber = pageNumber;
+      _activeGroupSearch = nextSearch;
+      _groupTrainingsFuture = loadAvailablePage(
+        _groupsPageNumber,
+        (number) => widget.groupTrainingApiService.getGroupTrainings(
+          pageNumber: number,
+          search: _activeGroupSearch,
+        ),
       );
     });
   }
@@ -180,7 +199,7 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
             _loadPlans();
           },
         ),
-        FutureBuilder<List<AdminMembershipPlan>>(
+        FutureBuilder<PagedResult<AdminMembershipPlan>>(
           future: _plansFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -194,18 +213,40 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
               );
             }
 
-            final plans = snapshot.data ?? const <AdminMembershipPlan>[];
+            final page = snapshot.data!;
+            _plansPageNumber = page.pageNumber;
+            final plans = page.items;
             if (plans.isEmpty) {
-              return _StatePanel.empty(
-                activeSearch: _activeSearch,
-                onRefresh: () => _loadPlans(search: _activeSearch),
+              return Column(
+                children: [
+                  _StatePanel.empty(
+                    activeSearch: _activeSearch,
+                    onRefresh: () => _loadPlans(search: _activeSearch),
+                  ),
+                  const SizedBox(height: 12),
+                  AdminPagingControls(
+                    page: page,
+                    onPageChanged: (number) =>
+                        _loadPlans(search: _activeSearch, pageNumber: number),
+                  ),
+                ],
               );
             }
 
-            return _PlansPanel(
-              plans: plans,
-              onEdit: _openEditPlan,
-              onRefresh: () => _loadPlans(search: _activeSearch),
+            return Column(
+              children: [
+                _PlansPanel(
+                  plans: plans,
+                  onEdit: _openEditPlan,
+                  onRefresh: () => _loadPlans(search: _activeSearch),
+                ),
+                const SizedBox(height: 12),
+                AdminPagingControls(
+                  page: page,
+                  onPageChanged: (number) =>
+                      _loadPlans(search: _activeSearch, pageNumber: number),
+                ),
+              ],
             );
           },
         ),
@@ -221,7 +262,7 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
             _loadGroupTrainings();
           },
         ),
-        FutureBuilder<List<AdminGroupTraining>>(
+        FutureBuilder<PagedResult<AdminGroupTraining>>(
           future: _groupTrainingsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -239,25 +280,52 @@ class _MembershipPlansScreenState extends State<MembershipPlansScreen> {
               );
             }
 
-            final trainings = snapshot.data ?? const <AdminGroupTraining>[];
+            final page = snapshot.data!;
+            _groupsPageNumber = page.pageNumber;
+            final trainings = page.items;
             if (trainings.isEmpty) {
-              return _StatePanel.empty(
-                icon: Icons.groups_outlined,
-                title: _activeGroupSearch.isEmpty
-                    ? 'No group trainings yet'
-                    : 'No matching group trainings',
-                message: _activeGroupSearch.isEmpty
-                    ? 'Create the first center class and assign it to a trainer.'
-                    : 'No trainings matched the current search.',
-                onRefresh: () =>
-                    _loadGroupTrainings(search: _activeGroupSearch),
+              return Column(
+                children: [
+                  _StatePanel.empty(
+                    icon: Icons.groups_outlined,
+                    title: _activeGroupSearch.isEmpty
+                        ? 'No group trainings yet'
+                        : 'No matching group trainings',
+                    message: _activeGroupSearch.isEmpty
+                        ? 'Create the first center class and assign it to a trainer.'
+                        : 'No trainings matched the current search.',
+                    onRefresh: () =>
+                        _loadGroupTrainings(search: _activeGroupSearch),
+                  ),
+                  const SizedBox(height: 12),
+                  AdminPagingControls(
+                    page: page,
+                    onPageChanged: (number) => _loadGroupTrainings(
+                      search: _activeGroupSearch,
+                      pageNumber: number,
+                    ),
+                  ),
+                ],
               );
             }
 
-            return _GroupTrainingsPanel(
-              trainings: trainings,
-              onEdit: _openEditGroupTraining,
-              onRefresh: () => _loadGroupTrainings(search: _activeGroupSearch),
+            return Column(
+              children: [
+                _GroupTrainingsPanel(
+                  trainings: trainings,
+                  onEdit: _openEditGroupTraining,
+                  onRefresh: () =>
+                      _loadGroupTrainings(search: _activeGroupSearch),
+                ),
+                const SizedBox(height: 12),
+                AdminPagingControls(
+                  page: page,
+                  onPageChanged: (number) => _loadGroupTrainings(
+                    search: _activeGroupSearch,
+                    pageNumber: number,
+                  ),
+                ),
+              ],
             );
           },
         ),

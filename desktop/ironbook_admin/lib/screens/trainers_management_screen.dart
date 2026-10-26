@@ -1,3 +1,6 @@
+import '../models/paged_result.dart';
+import '../widgets/admin_paging_controls.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/admin_trainer.dart';
@@ -24,8 +27,9 @@ class TrainersManagementScreen extends StatefulWidget {
 }
 
 class _TrainersManagementScreenState extends State<TrainersManagementScreen> {
-  late Future<List<AdminTrainer>> _trainersFuture;
+  late Future<PagedResult<AdminTrainer>> _trainersFuture;
   final _searchController = TextEditingController();
+  int _pageNumber = 1;
   String _activeSearch = '';
 
   @override
@@ -40,10 +44,17 @@ class _TrainersManagementScreenState extends State<TrainersManagementScreen> {
     super.dispose();
   }
 
-  void _loadTrainers({String? search}) {
-    _activeSearch = search?.trim() ?? '';
-    _trainersFuture = widget.trainerApiService.getTrainers(
-      search: _activeSearch,
+  void _loadTrainers({String? search, int? pageNumber}) {
+    final nextSearch = search?.trim() ?? '';
+    if (nextSearch != _activeSearch) _pageNumber = 1;
+    if (pageNumber != null) _pageNumber = pageNumber;
+    _activeSearch = nextSearch;
+    _trainersFuture = loadAvailablePage(
+      _pageNumber,
+      (number) => widget.trainerApiService.getTrainers(
+        pageNumber: number,
+        search: _activeSearch,
+      ),
     );
   }
 
@@ -116,7 +127,7 @@ class _TrainersManagementScreenState extends State<TrainersManagementScreen> {
             setState(_loadTrainers);
           },
         ),
-        FutureBuilder<List<AdminTrainer>>(
+        FutureBuilder<PagedResult<AdminTrainer>>(
           future: _trainersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -130,18 +141,48 @@ class _TrainersManagementScreenState extends State<TrainersManagementScreen> {
               );
             }
 
-            final trainers = snapshot.data ?? const <AdminTrainer>[];
+            final page = snapshot.data!;
+            _pageNumber = page.pageNumber;
+            final trainers = page.items;
             if (trainers.isEmpty) {
-              return _StatePanel.empty(
-                activeSearch: _activeSearch,
-                onRefresh: _refresh,
+              return Column(
+                children: [
+                  _StatePanel.empty(
+                    activeSearch: _activeSearch,
+                    onRefresh: _refresh,
+                  ),
+                  const SizedBox(height: 12),
+                  AdminPagingControls(
+                    page: page,
+                    onPageChanged: (number) => setState(
+                      () => _loadTrainers(
+                        search: _activeSearch,
+                        pageNumber: number,
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
 
-            return _TrainerRosterPanel(
-              trainers: trainers,
-              onRefresh: _refresh,
-              onOpenTrainer: _openTrainer,
+            return Column(
+              children: [
+                _TrainerRosterPanel(
+                  trainers: trainers,
+                  onRefresh: _refresh,
+                  onOpenTrainer: _openTrainer,
+                ),
+                const SizedBox(height: 12),
+                AdminPagingControls(
+                  page: page,
+                  onPageChanged: (number) => setState(
+                    () => _loadTrainers(
+                      search: _activeSearch,
+                      pageNumber: number,
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),

@@ -364,7 +364,25 @@ void main() {
           sent++;
           expect(request.method, call.method);
           expect(request.url.path, call.path);
-          expect(request.url.queryParameters, call.query);
+          final pagedRoutes = [
+            '/api/admin/centers',
+            '/api/admin/trainers',
+            '/api/admin/membership-plans',
+            '/api/admin/group-trainings',
+            '/api/admin/coaching-requests',
+            '/api/admin/payments',
+          ];
+          final lookup = [
+            'Coaching trainer options',
+            'Payments centers',
+            'Reports filter centers',
+          ].contains(call.name);
+          expect(request.url.queryParameters, {
+            ...call.query,
+            if (call.method == 'GET' && pagedRoutes.contains(call.path))
+              'pageNumber': '1',
+            if (lookup) 'pageSize': '100',
+          });
           expect(
             request.headers['Authorization'],
             'Bearer fixture-access-token',

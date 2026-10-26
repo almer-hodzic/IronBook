@@ -1,3 +1,6 @@
+import '../models/paged_result.dart';
+import '../widgets/admin_paging_controls.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/admin_center.dart';
@@ -18,8 +21,9 @@ class CentersManagementScreen extends StatefulWidget {
 }
 
 class _CentersManagementScreenState extends State<CentersManagementScreen> {
-  late Future<List<AdminCenter>> _centersFuture;
+  late Future<PagedResult<AdminCenter>> _centersFuture;
   final _searchController = TextEditingController();
+  int _pageNumber = 1;
   String _activeSearch = '';
 
   @override
@@ -34,11 +38,18 @@ class _CentersManagementScreenState extends State<CentersManagementScreen> {
     super.dispose();
   }
 
-  void _loadCenters({String? search}) {
+  void _loadCenters({String? search, int? pageNumber}) {
     setState(() {
-      _activeSearch = search?.trim() ?? '';
-      _centersFuture = widget.centerApiService.getCenters(
-        search: _activeSearch,
+      final nextSearch = search?.trim() ?? '';
+      if (nextSearch != _activeSearch) _pageNumber = 1;
+      if (pageNumber != null) _pageNumber = pageNumber;
+      _activeSearch = nextSearch;
+      _centersFuture = loadAvailablePage(
+        _pageNumber,
+        (number) => widget.centerApiService.getCenters(
+          pageNumber: number,
+          search: _activeSearch,
+        ),
       );
     });
   }
@@ -103,7 +114,7 @@ class _CentersManagementScreenState extends State<CentersManagementScreen> {
             _loadCenters();
           },
         ),
-        FutureBuilder<List<AdminCenter>>(
+        FutureBuilder<PagedResult<AdminCenter>>(
           future: _centersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -117,18 +128,40 @@ class _CentersManagementScreenState extends State<CentersManagementScreen> {
               );
             }
 
-            final centers = snapshot.data ?? const <AdminCenter>[];
+            final page = snapshot.data!;
+            _pageNumber = page.pageNumber;
+            final centers = page.items;
             if (centers.isEmpty) {
-              return _StatePanel.empty(
-                activeSearch: _activeSearch,
-                onRefresh: () => _loadCenters(search: _activeSearch),
+              return Column(
+                children: [
+                  _StatePanel.empty(
+                    activeSearch: _activeSearch,
+                    onRefresh: () => _loadCenters(search: _activeSearch),
+                  ),
+                  const SizedBox(height: 12),
+                  AdminPagingControls(
+                    page: page,
+                    onPageChanged: (number) =>
+                        _loadCenters(search: _activeSearch, pageNumber: number),
+                  ),
+                ],
               );
             }
 
-            return _CentersPanel(
-              centers: centers,
-              onEdit: _openEditCenter,
-              onRefresh: () => _loadCenters(search: _activeSearch),
+            return Column(
+              children: [
+                _CentersPanel(
+                  centers: centers,
+                  onEdit: _openEditCenter,
+                  onRefresh: () => _loadCenters(search: _activeSearch),
+                ),
+                const SizedBox(height: 12),
+                AdminPagingControls(
+                  page: page,
+                  onPageChanged: (number) =>
+                      _loadCenters(search: _activeSearch, pageNumber: number),
+                ),
+              ],
             );
           },
         ),

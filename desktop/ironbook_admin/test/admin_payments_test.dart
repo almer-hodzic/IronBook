@@ -1,3 +1,5 @@
+import 'support/paged_response.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -43,7 +45,7 @@ const center = {
   'createdAt': '2026-01-01T00:00:00Z',
 };
 http.Response jsonResponse(Object data, [int code = 200]) =>
-    http.Response(jsonEncode(data), code);
+    http.Response(jsonEncode(data is List ? pagedResponse(data) : data), code);
 
 Future<void> showPayments(WidgetTester tester, http.Client client) async {
   await tester.binding.setSurfaceSize(const Size(1400, 1000));
@@ -99,9 +101,10 @@ void main() {
         centerId: 3,
       ),
     );
-    expect(list.map((p) => p.id), [20, 12]);
+    expect(list.items.map((p) => p.id), [20, 12]);
     expect(requests.first.url.path, '/api/admin/payments');
     expect(requests.first.url.queryParameters, {
+      'pageNumber': '1',
       'search': 'member@example.com',
       'status': 'PendingReception',
       'paymentMethod': 'Reception',
@@ -307,6 +310,7 @@ void main() {
     requests.clear();
     await tap(tester, find.text('Apply filters'));
     const query = {
+      'pageNumber': '1',
       'search': 'Test Member',
       'status': 'PendingReception',
       'paymentMethod': 'Reception',
@@ -318,7 +322,7 @@ void main() {
     expect(requests.first.url.queryParameters, query);
     requests.clear();
     await tap(tester, find.text('Clear filters'));
-    expect(requests.first.url.queryParameters, isEmpty);
+    expect(requests.first.url.queryParameters, {'pageNumber': '1'});
     expect(
       tester
           .widget<TextField>(find.byKey(const Key('payment-search')))

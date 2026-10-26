@@ -56,7 +56,7 @@ class _TrainerFormScreenState extends State<TrainerFormScreen> {
   }
 
   Future<_TrainerFormData> _loadFormData() async {
-    final centersFuture = widget.centerApiService.getCenters();
+    final centersFuture = widget.centerApiService.getAllCenters();
     final trainerId = widget.trainerId;
 
     if (trainerId == null) {

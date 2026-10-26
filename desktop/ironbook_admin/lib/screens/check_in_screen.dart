@@ -49,7 +49,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   void _loadCenters() {
-    _centersFuture = widget.centerApiService.getCenters().then((centers) {
+    _centersFuture = widget.centerApiService.getAllCenters().then((centers) {
       final activeCenters = centers
           .where((center) => center.isActive)
           .toList(growable: false);

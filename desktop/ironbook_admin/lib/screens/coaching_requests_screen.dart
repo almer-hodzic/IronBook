@@ -1,3 +1,6 @@
+import '../models/paged_result.dart';
+import '../widgets/admin_paging_controls.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/admin_coaching_request.dart';
@@ -23,8 +26,9 @@ class CoachingRequestsScreen extends StatefulWidget {
 }
 
 class _CoachingRequestsScreenState extends State<CoachingRequestsScreen> {
-  late Future<List<AdminCoachingRequest>> _requestsFuture;
+  late Future<PagedResult<AdminCoachingRequest>> _requestsFuture;
   final _searchController = TextEditingController();
+  int _pageNumber = 1;
   String _activeSearch = '';
   String _activeStatus = 'All';
 
@@ -40,12 +44,22 @@ class _CoachingRequestsScreenState extends State<CoachingRequestsScreen> {
     super.dispose();
   }
 
-  void _loadRequests({String? search, String? status}) {
-    _activeSearch = search?.trim() ?? _activeSearch;
-    _activeStatus = status ?? _activeStatus;
-    _requestsFuture = widget.coachingRequestApiService.getCoachingRequests(
-      search: _activeSearch,
-      status: _activeStatus == 'All' ? null : _activeStatus,
+  void _loadRequests({String? search, String? status, int? pageNumber}) {
+    final nextSearch = search?.trim() ?? _activeSearch;
+    final nextStatus = status ?? _activeStatus;
+    if (nextSearch != _activeSearch || nextStatus != _activeStatus) {
+      _pageNumber = 1;
+    }
+    if (pageNumber != null) _pageNumber = pageNumber;
+    _activeSearch = nextSearch;
+    _activeStatus = nextStatus;
+    _requestsFuture = loadAvailablePage(
+      _pageNumber,
+      (number) => widget.coachingRequestApiService.getCoachingRequests(
+        pageNumber: number,
+        search: _activeSearch,
+        status: _activeStatus == 'All' ? null : _activeStatus,
+      ),
     );
   }
 
@@ -81,7 +95,10 @@ class _CoachingRequestsScreenState extends State<CoachingRequestsScreen> {
     }
   }
 
-  Future<bool> _confirmAction({required String title, required String description}) async {
+  Future<bool> _confirmAction({
+    required String title,
+    required String description,
+  }) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -154,24 +171,23 @@ class _CoachingRequestsScreenState extends State<CoachingRequestsScreen> {
   Widget build(BuildContext context) {
     return AdminPage(
       title: 'Coaching Requests',
-      subtitle: 'Review, approve, reject, cancel, and reassign coaching requests.',
+      subtitle:
+          'Review, approve, reject, cancel, and reassign coaching requests.',
       children: [
         _SearchAndFilterPanel(
           searchController: _searchController,
           activeSearch: _activeSearch,
           activeStatus: _activeStatus,
-          onSearch: () => setState(
-            () => _loadRequests(search: _searchController.text),
-          ),
+          onSearch: () =>
+              setState(() => _loadRequests(search: _searchController.text)),
           onClear: () {
             _searchController.clear();
             setState(() => _loadRequests(search: '', status: 'All'));
           },
-          onStatusChanged: (status) => setState(
-            () => _loadRequests(status: status),
-          ),
+          onStatusChanged: (status) =>
+              setState(() => _loadRequests(status: status)),
         ),
-        FutureBuilder<List<AdminCoachingRequest>>(
+        FutureBuilder<PagedResult<AdminCoachingRequest>>(
           future: _requestsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -185,33 +201,63 @@ class _CoachingRequestsScreenState extends State<CoachingRequestsScreen> {
               );
             }
 
-            final requests = snapshot.data ?? const <AdminCoachingRequest>[];
+            final page = snapshot.data!;
+            _pageNumber = page.pageNumber;
+            final requests = page.items;
             if (requests.isEmpty) {
-              return _StatePanel.empty(
-                activeSearch: _activeSearch,
-                onRefresh: _refresh,
+              return Column(
+                children: [
+                  _StatePanel.empty(
+                    activeSearch: _activeSearch,
+                    onRefresh: _refresh,
+                  ),
+                  const SizedBox(height: 12),
+                  AdminPagingControls(
+                    page: page,
+                    onPageChanged: (number) => setState(
+                      () => _loadRequests(
+                        search: _activeSearch,
+                        pageNumber: number,
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
 
-            return _RequestsPanel(
-              requests: requests,
-              onRefresh: _refresh,
-              onApprove: (request) => _handleAction(
-                request,
-                () => widget.coachingRequestApiService.approve(request.id),
-                'Request approved.',
-              ),
-              onReject: (request) => _handleAction(
-                request,
-                () => widget.coachingRequestApiService.reject(request.id),
-                'Request rejected.',
-              ),
-              onCancel: (request) => _handleAction(
-                request,
-                () => widget.coachingRequestApiService.cancel(request.id),
-                'Request cancelled.',
-              ),
-              onReassign: _openReassignDialog,
+            return Column(
+              children: [
+                _RequestsPanel(
+                  requests: requests,
+                  onRefresh: _refresh,
+                  onApprove: (request) => _handleAction(
+                    request,
+                    () => widget.coachingRequestApiService.approve(request.id),
+                    'Request approved.',
+                  ),
+                  onReject: (request) => _handleAction(
+                    request,
+                    () => widget.coachingRequestApiService.reject(request.id),
+                    'Request rejected.',
+                  ),
+                  onCancel: (request) => _handleAction(
+                    request,
+                    () => widget.coachingRequestApiService.cancel(request.id),
+                    'Request cancelled.',
+                  ),
+                  onReassign: _openReassignDialog,
+                ),
+                const SizedBox(height: 12),
+                AdminPagingControls(
+                  page: page,
+                  onPageChanged: (number) => setState(
+                    () => _loadRequests(
+                      search: _activeSearch,
+                      pageNumber: number,
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),

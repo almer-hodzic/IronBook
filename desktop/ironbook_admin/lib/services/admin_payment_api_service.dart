@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -34,24 +36,29 @@ class AdminPaymentApiService {
   final http.Client _client;
   final String _baseUrl;
 
-  Future<List<AdminPayment>> getPayments(AdminPaymentFilter filter) async {
-    final data = await _request('/api/admin/payments', query: filter.query);
-    if (data is! List) {
-      throw const AdminPaymentApiException('Invalid payments response.');
-    }
-    return _parse(
-      () => data.map((item) => AdminPayment.fromJson(_object(item))).toList(),
+  Future<PagedResult<AdminPayment>> getPayments(
+    AdminPaymentFilter filter, {
+    int pageNumber = 1,
+  }) async {
+    final data = await _request(
+      '/api/admin/payments',
+      query: {...filter.query, 'pageNumber': '$pageNumber'},
     );
+    return _parse(() => PagedResult.fromJson(data, AdminPayment.fromJson));
   }
 
   Future<List<AdminCenter>> getCenters() async {
-    final data = await _request('/api/admin/centers');
-    if (data is! List) {
-      throw const AdminPaymentApiException('Invalid centers response.');
+    try {
+      return await loadAllPages((page) async {
+        final data = await _request(
+          '/api/admin/centers',
+          query: {'pageNumber': '$page', 'pageSize': '100'},
+        );
+        return _parse(() => PagedResult.fromJson(data, AdminCenter.fromJson));
+      });
+    } on FormatException catch (error) {
+      throw AdminPaymentApiException(error.message);
     }
-    return _parse(
-      () => data.map((item) => AdminCenter.fromJson(_object(item))).toList(),
-    );
   }
 
   Future<AdminPayment> confirmReception(int id) async {

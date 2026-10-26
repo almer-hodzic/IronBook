@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -30,11 +32,16 @@ class AdminGroupTrainingApiService {
 
   final http.Client _client;
 
-  Future<List<AdminGroupTraining>> getGroupTrainings({
+  Future<PagedResult<AdminGroupTraining>> getGroupTrainings({
+    int pageNumber = 1,
+    int? pageSize,
     String? search,
     int? centerId,
   }) async {
-    final params = <String, String>{};
+    final params = <String, String>{
+      'pageNumber': '$pageNumber',
+      if (pageSize != null) 'pageSize': '$pageSize',
+    };
     final query = search?.trim();
     if (query != null && query.isNotEmpty) {
       params['search'] = query;
@@ -51,20 +58,11 @@ class AdminGroupTrainingApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminGroupTrainingApiException(
-        'Group trainings response was not in the expected format.',
-      );
-    }
-
     try {
-      return decoded
-          .map(
-            (item) =>
-                AdminGroupTraining.fromJson(readAdminGroupTrainingObject(item)),
-          )
-          .toList(growable: false);
+      return PagedResult.fromJson(
+        _decodeJson(response.body),
+        AdminGroupTraining.fromJson,
+      );
     } on FormatException catch (error) {
       throw AdminGroupTrainingApiException(error.message);
     }

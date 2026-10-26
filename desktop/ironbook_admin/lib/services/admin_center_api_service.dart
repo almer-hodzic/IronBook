@@ -1,3 +1,5 @@
+import '../models/paged_result.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -30,11 +32,21 @@ class AdminCenterApiService {
 
   final http.Client _client;
 
-  Future<List<AdminCenter>> getCenters({String? search}) async {
+  Future<PagedResult<AdminCenter>> getCenters({
+    String? search,
+    int pageNumber = 1,
+    int? pageSize,
+  }) async {
     final query = search?.trim();
-    final path = query == null || query.isEmpty
-        ? '/api/admin/centers'
-        : '/api/admin/centers?search=${Uri.encodeQueryComponent(query)}';
+    final params = <String, String>{
+      'pageNumber': '$pageNumber',
+      if (pageSize != null) 'pageSize': '$pageSize',
+      if (query != null && query.isNotEmpty) 'search': query,
+    };
+    final path = Uri(
+      path: '/api/admin/centers',
+      queryParameters: params,
+    ).toString();
     final response = await _get(path);
 
     if (response.statusCode != 200) {
@@ -44,17 +56,21 @@ class AdminCenterApiService {
       );
     }
 
-    final decoded = _decodeJson(response.body);
-    if (decoded is! List) {
-      throw const AdminCenterApiException(
-        'Centers response was not in the expected format.',
-      );
-    }
-
     try {
-      return decoded
-          .map((item) => AdminCenter.fromJson(_readObject(item)))
-          .toList(growable: false);
+      return PagedResult.fromJson(
+        _decodeJson(response.body),
+        AdminCenter.fromJson,
+      );
+    } on FormatException catch (error) {
+      throw AdminCenterApiException(error.message);
+    }
+  }
+
+  Future<List<AdminCenter>> getAllCenters() async {
+    try {
+      return await loadAllPages(
+        (page) => getCenters(pageNumber: page, pageSize: 100),
+      );
     } on FormatException catch (error) {
       throw AdminCenterApiException(error.message);
     }
