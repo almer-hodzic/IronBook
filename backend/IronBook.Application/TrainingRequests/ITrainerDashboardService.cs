@@ -1,9 +1,11 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.TrainingRequests;
 
 public interface ITrainerDashboardService
 {
-    Task<IReadOnlyList<TrainerDashboardRequestDto>> GetCoachingRequestsAsync(
-        CancellationToken cancellationToken = default);
+    Task<PagedResult<TrainerDashboardRequestDto>> GetCoachingRequestsAsync(
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<TrainerDashboardRequestDetailDto?> GetCoachingRequestAsync(
         int requestId,

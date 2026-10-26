@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -46,7 +47,7 @@ public class TrainerDashboardIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "trainer");
-        var rows = (await client.GetFromJsonAsync<List<TrainerDashboardRequestDto>>(Route))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<TrainerDashboardRequestDto>>(Route))!.Items;
         Assert.Equal(new[] { fixture.EarlyId, fixture.LateId }, rows.Select(row => row.Id));
         Assert.All(rows, row => Assert.Equal("Approved", row.Status));
         Assert.DoesNotContain(rows, row => row.Id == fixture.OtherId);
@@ -75,7 +76,7 @@ public class TrainerDashboardIdentityTests
             Assert.Equal(row.Id == fixture.EarlyId, details.HasTrainingReport);
         }
         await Authenticate(client, "other-trainer");
-        Assert.Equal(fixture.OtherId, Assert.Single((await client.GetFromJsonAsync<List<TrainerDashboardRequestDto>>(Route))!).Id);
+        Assert.Equal(fixture.OtherId, Assert.Single((await client.GetFromJsonAsync<PagedResult<TrainerDashboardRequestDto>>(Route))!.Items).Id);
         Assert.Equal(fixture.OtherId, (await client.GetFromJsonAsync<TrainerDashboardRequestDetailDto>(Route + "/" + fixture.OtherId))!.Id);
     }
 
@@ -126,7 +127,7 @@ public class TrainerDashboardIdentityTests
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(new[] { fixture.EarlyId, fixture.LateId },
-            (await response.Content.ReadFromJsonAsync<List<TrainerDashboardRequestDto>>())!.Select(row => row.Id));
+            (await response.Content.ReadFromJsonAsync<PagedResult<TrainerDashboardRequestDto>>())!.Items.Select(row => row.Id));
         var details = await client.GetFromJsonAsync<TrainerDashboardRequestDetailDto>(Route + "/" + fixture.EarlyId
             + "?trainerProfileId=" + fixture.OtherTrainerId);
         Assert.Equal(fixture.EarlyId, details!.Id);
@@ -147,7 +148,7 @@ public class TrainerDashboardIdentityTests
         await db.SaveChangesAsync();
         using var client = factory.CreateClient();
         await Authenticate(client, "trainer");
-        var rows = (await client.GetFromJsonAsync<List<TrainerDashboardRequestDto>>(Route))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<TrainerDashboardRequestDto>>(Route))!.Items;
         Assert.Equal(status == TrainingRequestStatus.Approved, rows.Any(row => row.Id == fixture.EarlyId));
         var response = await client.GetAsync(Route + "/" + fixture.EarlyId);
         Assert.Equal(status == TrainingRequestStatus.Approved ? HttpStatusCode.OK : HttpStatusCode.NotFound, response.StatusCode);
@@ -162,7 +163,7 @@ public class TrainerDashboardIdentityTests
         await factory.SeedAsync();
         using var client = factory.CreateClient();
         await Authenticate(client, "trainer");
-        Assert.Empty((await client.GetFromJsonAsync<List<TrainerDashboardRequestDto>>(Route))!);
+        Assert.Empty((await client.GetFromJsonAsync<PagedResult<TrainerDashboardRequestDto>>(Route))!.Items);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route + "/2147483647")).StatusCode);
     }
 

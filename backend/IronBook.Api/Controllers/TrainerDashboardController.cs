@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingRequests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,10 +19,10 @@ public sealed class TrainerDashboardController : ControllerBase
     }
 
     [HttpGet("dashboard/coaching-requests")]
-    public async Task<ActionResult<IReadOnlyList<TrainerDashboardRequestDto>>> GetCoachingRequests(
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResult<TrainerDashboardRequestDto>>> GetCoachingRequests(
+        [FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
     {
-        var requests = await _dashboardService.GetCoachingRequestsAsync(cancellationToken);
+        var requests = await _dashboardService.GetCoachingRequestsAsync(cancellationToken, pagination);
         return Ok(requests);
     }
 

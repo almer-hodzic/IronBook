@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Enums;
 using IronBook.Application.Auth;
@@ -19,13 +20,15 @@ public sealed class TrainerDashboardService : ITrainerDashboardService
         _trainerResolver = trainerResolver;
     }
 
-    public async Task<IReadOnlyList<TrainerDashboardRequestDto>> GetCoachingRequestsAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<PagedResult<TrainerDashboardRequestDto>> GetCoachingRequestsAsync(
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var trainer = await _trainerResolver.ResolveAsync(cancellationToken: cancellationToken);
         if (trainer is null)
         {
-            return [];
+            return new([], pagination.PageNumber, pagination.PageSize, 0);
         }
 
         return await _dbContext.TrainingRequests
@@ -36,15 +39,16 @@ public sealed class TrainerDashboardService : ITrainerDashboardService
                 request.TrainerProfileId == trainer.Id &&
                 request.Status == TrainingRequestStatus.Approved)
             .OrderBy(request => request.RequestedStartAt)
-            .Select(request => new TrainerDashboardRequestDto(
+            .ThenBy(request => request.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(request => new TrainerDashboardRequestDto(
                 request.Id,
                 request.MemberProfile.FirstName + " " + request.MemberProfile.LastName,
                 request.Center.Name,
                 request.RequestedStartAt,
                 request.DurationMinutes,
                 request.Status.ToString(),
-                request.CreatedAt))
-            .ToListAsync(cancellationToken);
+                request.CreatedAt)), cancellationToken);
     }
 
     public async Task<TrainerDashboardRequestDetailDto?> GetCoachingRequestAsync(
