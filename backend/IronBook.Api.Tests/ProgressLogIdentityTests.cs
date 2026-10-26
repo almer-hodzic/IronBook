@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -41,7 +42,7 @@ public class ProgressLogIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "member");
-        var rows = (await client.GetFromJsonAsync<List<MemberProgressLogDto>>(Route + "?memberProfileId=" + fixture.OtherMemberId))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<MemberProgressLogDto>>(Route + "?memberProfileId=" + fixture.OtherMemberId))!.Items;
         Assert.Equal(fixture.OrderedOwnIds, rows.Select(row => row.Id));
         Assert.DoesNotContain(rows, row => row.Id == fixture.OtherReportId);
         Assert.All(rows, row =>
@@ -59,7 +60,7 @@ public class ProgressLogIdentityTests
             Assert.DoesNotContain(row.Exercises, exercise => exercise.ExerciseName == "Other private exercise");
         });
         await Authenticate(client, "other-member");
-        var other = Assert.Single((await client.GetFromJsonAsync<List<MemberProgressLogDto>>(Route))!);
+        var other = Assert.Single((await client.GetFromJsonAsync<PagedResult<MemberProgressLogDto>>(Route))!.Items);
         Assert.Equal(fixture.OtherReportId, other.Id);
         Assert.Equal("Other private report notes", other.ReportNotes);
         Assert.Equal("Other private exercise", Assert.Single(other.Exercises).ExerciseName);
@@ -77,7 +78,7 @@ public class ProgressLogIdentityTests
         (await db.MemberProfiles.SingleAsync(member => member.Id == fixture.MemberId)).Email = "edited@example.invalid";
         await db.SaveChangesAsync();
         Assert.Equal(fixture.OrderedOwnIds,
-            (await client.GetFromJsonAsync<List<MemberProgressLogDto>>(Route))!.Select(row => row.Id));
+            (await client.GetFromJsonAsync<PagedResult<MemberProgressLogDto>>(Route))!.Items.Select(row => row.Id));
     }
 
     [Theory]
@@ -97,7 +98,7 @@ public class ProgressLogIdentityTests
             "to" => "toDate=" + date + "T12:00:00",
             _ => "fromDate=" + date + "&toDate=" + date
         };
-        var rows = (await client.GetFromJsonAsync<List<MemberProgressLogDto>>(Route + "?" + query + "&memberProfileId=" + fixture.OtherMemberId))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<MemberProgressLogDto>>(Route + "?" + query + "&memberProfileId=" + fixture.OtherMemberId))!.Items;
         var expected = fixture.OrderedOwnIds.Where(id => filter switch
         {
             "from" => id != fixture.OldestId,
@@ -139,7 +140,7 @@ public class ProgressLogIdentityTests
         await Authenticate(client, "member");
         var response = await client.GetAsync(Route);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Empty((await response.Content.ReadFromJsonAsync<List<MemberProgressLogDto>>())!);
+        Assert.Empty((await response.Content.ReadFromJsonAsync<PagedResult<MemberProgressLogDto>>())!.Items);
     }
 
     [Fact]

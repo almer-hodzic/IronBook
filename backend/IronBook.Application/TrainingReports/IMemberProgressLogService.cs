@@ -1,9 +1,11 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.TrainingReports;
 
 public interface IMemberProgressLogService
 {
-    Task<IReadOnlyList<MemberProgressLogDto>> GetAsync(
+    Task<PagedResult<MemberProgressLogDto>> GetAsync(
         DateTime? fromDate = null,
         DateTime? toDate = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 }

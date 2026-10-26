@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.GroupTrainings;
 using IronBook.Application.Auth;
 using IronBook.Domain.Entities;
@@ -20,11 +21,13 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
         _currentMemberService = currentMemberService;
     }
 
-    public async Task<IReadOnlyList<MemberGroupTrainingDto>> GetAvailableGroupTrainingsForCenterAsync(
+    public async Task<PagedResult<MemberGroupTrainingDto>> GetAvailableGroupTrainingsForCenterAsync(
         int centerId,
         string? search = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var member = await _currentMemberService.ResolveAsync(cancellationToken);
         var memberId = member?.Id;
         var query = AvailableQuery(centerId, memberId);
@@ -43,8 +46,9 @@ public sealed class MemberGroupTrainingService : IMemberGroupTrainingService
         return await query
             .OrderBy(training => training.StartsAt)
             .ThenBy(training => training.Name)
-            .Select(training => ToMemberDto(training, member == null ? null : member.Id))
-            .ToListAsync(cancellationToken);
+            .ThenBy(training => training.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(training => ToMemberDto(training, member == null ? null : member.Id)), cancellationToken);
     }
 
     public async Task<MemberGroupTrainingDto?> GetAvailableGroupTrainingForCenterAsync(

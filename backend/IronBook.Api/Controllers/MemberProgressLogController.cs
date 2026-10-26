@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingReports;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,10 +19,10 @@ public sealed class MemberProgressLogController : ControllerBase
     }
 
     [HttpGet("progress-log")]
-    public async Task<ActionResult<IReadOnlyList<MemberProgressLogDto>>> Get(
+    public async Task<ActionResult<PagedResult<MemberProgressLogDto>>> Get(
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        CancellationToken cancellationToken)
+        [FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
     {
         if (fromDate.HasValue && toDate.HasValue && fromDate.Value.Date > toDate.Value.Date)
         {
@@ -31,7 +32,7 @@ public sealed class MemberProgressLogController : ControllerBase
         var reports = await _progressLogService.GetAsync(
             fromDate,
             toDate,
-            cancellationToken);
+            cancellationToken, pagination);
 
         return Ok(reports);
     }

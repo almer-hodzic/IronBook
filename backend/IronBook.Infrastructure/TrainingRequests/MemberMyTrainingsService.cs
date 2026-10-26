@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
@@ -22,12 +23,14 @@ public sealed class MemberMyTrainingsService : IMemberMyTrainingsService
         _memberResolver = memberResolver;
     }
 
-    public async Task<IReadOnlyList<TrainingRequestDto>> GetAsync(
+    public async Task<PagedResult<TrainingRequestDto>> GetAsync(
         TrainingRequestStatus? status = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var member = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken);
-        if (member is null) return [];
+        if (member is null) return new([], pagination.PageNumber, pagination.PageSize, 0);
 
         var query = _dbContext.TrainingRequests.AsNoTracking()
             .Where(request => request.MemberProfileId == member.Id);
@@ -41,7 +44,7 @@ public sealed class MemberMyTrainingsService : IMemberMyTrainingsService
             .ThenByDescending(request => request.RequestedStartAt)
             .ThenByDescending(request => request.Id);
 
-        return await SelectDtos(ordered).ToListAsync(cancellationToken);
+        return await ordered.ToPagedResultAsync(pagination, SelectDtos, cancellationToken);
     }
 
     public async Task<MemberTrainingCancellationResult> CancelAsync(

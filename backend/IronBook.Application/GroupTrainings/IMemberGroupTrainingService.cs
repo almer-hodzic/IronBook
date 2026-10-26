@@ -1,11 +1,13 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.GroupTrainings;
 
 public interface IMemberGroupTrainingService
 {
-    Task<IReadOnlyList<MemberGroupTrainingDto>> GetAvailableGroupTrainingsForCenterAsync(
+    Task<PagedResult<MemberGroupTrainingDto>> GetAvailableGroupTrainingsForCenterAsync(
         int centerId,
         string? search = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<MemberGroupTrainingDto?> GetAvailableGroupTrainingForCenterAsync(
         int centerId,

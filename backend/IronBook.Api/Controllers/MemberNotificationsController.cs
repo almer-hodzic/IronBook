@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Notifications;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -16,8 +17,8 @@ public sealed class MemberNotificationsController : ControllerBase
         _notificationService = notificationService;
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<MemberNotificationDto>>> Get(CancellationToken cancellationToken) =>
-        Ok(await _notificationService.GetAsync(cancellationToken));
+    public async Task<ActionResult<PagedResult<MemberNotificationDto>>> Get([FromQuery] PaginationRequest pagination, CancellationToken cancellationToken) =>
+        Ok(await _notificationService.GetAsync(cancellationToken, pagination));
 
     [HttpPut("{id:int}/read")]
     public async Task<ActionResult<MemberNotificationDto>> MarkRead(int id, CancellationToken cancellationToken)

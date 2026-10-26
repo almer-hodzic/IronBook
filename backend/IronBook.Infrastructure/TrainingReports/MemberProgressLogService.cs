@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingReports;
 using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
@@ -18,15 +19,17 @@ public sealed class MemberProgressLogService : IMemberProgressLogService
         _memberResolver = memberResolver;
     }
 
-    public async Task<IReadOnlyList<MemberProgressLogDto>> GetAsync(
+    public async Task<PagedResult<MemberProgressLogDto>> GetAsync(
         DateTime? fromDate = null,
         DateTime? toDate = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var member = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken);
         if (member is null)
         {
-            return [];
+            return new([], pagination.PageNumber, pagination.PageSize, 0);
         }
 
         var from = fromDate?.Date;
@@ -40,7 +43,8 @@ public sealed class MemberProgressLogService : IMemberProgressLogService
             .OrderByDescending(report => report.TrainingDate)
             .ThenByDescending(report => report.CreatedAt)
             .ThenByDescending(report => report.Id)
-            .Select(report => new MemberProgressLogDto(
+            .ToPagedResultAsync(pagination, page => page
+                .Select(report => new MemberProgressLogDto(
                 report.Id,
                 report.TrainingDate,
                 report.TrainerProfile.FirstName + " " + report.TrainerProfile.LastName,
@@ -54,7 +58,6 @@ public sealed class MemberProgressLogService : IMemberProgressLogService
                         exercise.Reps,
                         exercise.Weight,
                         exercise.Notes))
-                    .ToList()))
-            .ToListAsync(cancellationToken);
+                    .ToList())), cancellationToken);
     }
 }

@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -44,7 +45,7 @@ public class NotificationIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "member");
-        var rows = (await client.GetFromJsonAsync<List<MemberNotificationDto>>(Route))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<MemberNotificationDto>>(Route))!.Items;
         Assert.Equal(fixture.OrderedOwnIds, rows.Select(row => row.Id));
         Assert.Equal(new[] { false, true, false }, rows.Select(row => row.IsRead));
         Assert.Equal(2, rows.Count(row => !row.IsRead));
@@ -62,7 +63,7 @@ public class NotificationIdentityTests
         }
         await Authenticate(client, "other-member");
         Assert.Equal(fixture.OtherNotificationId,
-            Assert.Single((await client.GetFromJsonAsync<List<MemberNotificationDto>>(Route))!).Id);
+            Assert.Single((await client.GetFromJsonAsync<PagedResult<MemberNotificationDto>>(Route))!.Items).Id);
     }
 
     [Fact]
@@ -80,7 +81,7 @@ public class NotificationIdentityTests
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(fixture.OrderedOwnIds,
-            (await response.Content.ReadFromJsonAsync<List<MemberNotificationDto>>())!.Select(row => row.Id));
+            (await response.Content.ReadFromJsonAsync<PagedResult<MemberNotificationDto>>())!.Items.Select(row => row.Id));
     }
 
     [Fact]
@@ -92,7 +93,7 @@ public class NotificationIdentityTests
         await Authenticate(client, "member");
         var response = await client.GetAsync(Route);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Empty((await response.Content.ReadFromJsonAsync<List<MemberNotificationDto>>())!);
+        Assert.Empty((await response.Content.ReadFromJsonAsync<PagedResult<MemberNotificationDto>>())!.Items);
     }
 
     [Fact]
@@ -117,7 +118,7 @@ public class NotificationIdentityTests
         var repeated = await client.PutAsync($"{Route}/{dto.Id}/read", null);
         Assert.Equal(HttpStatusCode.OK, repeated.StatusCode);
         Assert.Equal(dto, await repeated.Content.ReadFromJsonAsync<MemberNotificationDto>());
-        var rows = (await client.GetFromJsonAsync<List<MemberNotificationDto>>(Route))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<MemberNotificationDto>>(Route))!.Items;
         Assert.True(rows.Single(row => row.Id == dto.Id).IsRead);
         Assert.Single(rows, row => !row.IsRead);
         Assert.Equal(4, await db.Notifications.CountAsync());
@@ -163,7 +164,7 @@ public class NotificationIdentityTests
         (await db.MemberProfiles.SingleAsync(row => row.Id == fixture.MemberId)).Email = "edited@example.invalid";
         await db.SaveChangesAsync();
         Assert.Equal(fixture.OrderedOwnIds,
-            (await client.GetFromJsonAsync<List<MemberNotificationDto>>(Route))!.Select(row => row.Id));
+            (await client.GetFromJsonAsync<PagedResult<MemberNotificationDto>>(Route))!.Items.Select(row => row.Id));
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsync($"{Route}/{fixture.OwnUnreadId}/read", null)).StatusCode);
         Assert.True((await db.Notifications.AsNoTracking().SingleAsync(row => row.Id == fixture.OwnUnreadId)).IsRead);
         Assert.False((await db.Notifications.AsNoTracking().SingleAsync(row => row.Id == fixture.OtherNotificationId)).IsRead);

@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Notifications;
 using IronBook.Application.Auth;
 using IronBook.Infrastructure.Persistence;
@@ -16,17 +17,19 @@ public sealed class MemberNotificationService : IMemberNotificationService
         _memberResolver = memberResolver;
     }
 
-    public async Task<IReadOnlyList<MemberNotificationDto>> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<PagedResult<MemberNotificationDto>> GetAsync(CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var member = await _memberResolver.ResolveAsync(cancellationToken: cancellationToken);
-        if (member is null) return [];
+        if (member is null) return new([], pagination.PageNumber, pagination.PageSize, 0);
 
         return await _dbContext.Notifications.AsNoTracking()
             .Where(notification => notification.MemberProfileId == member.Id)
             .OrderByDescending(notification => notification.CreatedAt).ThenByDescending(notification => notification.Id)
-            .Select(notification => new MemberNotificationDto(notification.Id, notification.TrainingRequestId,
-                notification.Title, notification.Message, notification.CreatedAt, notification.IsRead))
-            .ToListAsync(cancellationToken);
+            .ToPagedResultAsync(pagination, page => page
+                .Select(notification => new MemberNotificationDto(notification.Id, notification.TrainingRequestId,
+                notification.Title, notification.Message, notification.CreatedAt, notification.IsRead)), cancellationToken);
     }
 
     public async Task<MemberNotificationDto?> MarkReadAsync(int id, CancellationToken cancellationToken = default)

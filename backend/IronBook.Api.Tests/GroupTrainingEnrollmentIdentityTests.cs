@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -170,7 +171,7 @@ public class GroupTrainingEnrollmentIdentityTests
         var browseRoute = $"/api/centers/{fixture.CenterId}/group-trainings";
         var list = await client.GetAsync(browseRoute);
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
-        var row = Assert.Single((await list.Content.ReadFromJsonAsync<List<MemberGroupTrainingDto>>())!);
+        var row = Assert.Single((await list.Content.ReadFromJsonAsync<PagedResult<MemberGroupTrainingDto>>())!.Items);
         Assert.True(row.IsEnrolled);
         Assert.Equal("Full", row.Status);
         Assert.Equal(0, row.AvailableSpots);

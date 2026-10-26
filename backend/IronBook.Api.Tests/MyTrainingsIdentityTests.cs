@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -50,12 +51,12 @@ public class MyTrainingsIdentityTests
         var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
         (await db.MemberProfiles.SingleAsync(member => member.Id == fixture.MemberId)).Email = "edited@example.invalid";
         await db.SaveChangesAsync();
-        var rows = (await client.GetFromJsonAsync<List<TrainingRequestDto>>(Route + "?memberProfileId=" + fixture.OtherMemberId))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<TrainingRequestDto>>(Route + "?memberProfileId=" + fixture.OtherMemberId))!.Items;
         Assert.Equal(fixture.OrderedOwnIds, rows.Select(row => row.Id));
         Assert.All(rows, row => Assert.Equal(fixture.MemberId, row.MemberProfileId));
         Assert.DoesNotContain(rows, row => row.Id == fixture.OtherRequestId);
         await Authenticate(client, "other-member");
-        Assert.Equal(fixture.OtherRequestId, Assert.Single((await client.GetFromJsonAsync<List<TrainingRequestDto>>(Route))!).Id);
+        Assert.Equal(fixture.OtherRequestId, Assert.Single((await client.GetFromJsonAsync<PagedResult<TrainingRequestDto>>(Route))!.Items).Id);
     }
 
     [Theory]
@@ -69,8 +70,8 @@ public class MyTrainingsIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "member");
-        var rows = (await client.GetFromJsonAsync<List<TrainingRequestDto>>(
-            Route + "?status=%20" + status.ToString().ToLowerInvariant() + "%20&memberProfileId=" + fixture.OtherMemberId))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<TrainingRequestDto>>(
+            Route + "?status=%20" + status.ToString().ToLowerInvariant() + "%20&memberProfileId=" + fixture.OtherMemberId))!.Items;
         Assert.NotEmpty(rows);
         Assert.All(rows, row => { Assert.Equal(fixture.MemberId, row.MemberProfileId); Assert.Equal(status.ToString(), row.Status); });
         Assert.DoesNotContain(rows, row => row.Id == fixture.OtherRequestId);

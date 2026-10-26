@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -39,7 +40,7 @@ public class GroupTrainingBrowseIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "member");
-        var own = (await client.GetFromJsonAsync<List<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!;
+        var own = (await client.GetFromJsonAsync<PagedResult<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!.Items;
         Assert.Equal(new[] { fixture.FullAId, fixture.OpenId }, own.Select(row => row.Id));
         Assert.True(own[0].IsEnrolled);
         Assert.False(own[1].IsEnrolled);
@@ -49,7 +50,7 @@ public class GroupTrainingBrowseIdentityTests
         Assert.Equal(own[0], await client.GetFromJsonAsync<MemberGroupTrainingDto>(Route(fixture.CenterId) + "/" + fixture.FullAId));
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route(fixture.CenterId) + "/" + fixture.FullBId)).StatusCode);
         await Authenticate(client, "other-member");
-        var other = (await client.GetFromJsonAsync<List<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!;
+        var other = (await client.GetFromJsonAsync<PagedResult<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!.Items;
         Assert.Equal(new[] { fixture.FullBId, fixture.OpenId }, other.Select(row => row.Id));
         Assert.True(other[0].IsEnrolled);
         Assert.True(other[1].IsEnrolled);
@@ -75,7 +76,7 @@ public class GroupTrainingBrowseIdentityTests
         };
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var rows = (await response.Content.ReadFromJsonAsync<List<MemberGroupTrainingDto>>())!;
+        var rows = (await response.Content.ReadFromJsonAsync<PagedResult<MemberGroupTrainingDto>>())!.Items;
         Assert.Equal(new[] { fixture.FullAId, fixture.OpenId }, rows.Select(row => row.Id));
         Assert.False(rows.Single(row => row.Id == fixture.OpenId).IsEnrolled);
         var detail = (await client.GetFromJsonAsync<MemberGroupTrainingDto>(Route(fixture.CenterId) + "/" + fixture.OpenId + spoof))!;
@@ -124,7 +125,7 @@ public class GroupTrainingBrowseIdentityTests
         var fixture = await Prepare(factory);
         using var client = factory.CreateClient();
         await Authenticate(client, "member");
-        Assert.Empty((await client.GetFromJsonAsync<List<MemberGroupTrainingDto>>(Route(int.MaxValue)))!);
+        Assert.Empty((await client.GetFromJsonAsync<PagedResult<MemberGroupTrainingDto>>(Route(int.MaxValue)))!.Items);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route(fixture.CenterId) + "/2147483647")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route(fixture.OtherCenterId) + "/" + fixture.OpenId)).StatusCode);
         using var scope = factory.Services.CreateScope();
@@ -136,13 +137,13 @@ public class GroupTrainingBrowseIdentityTests
             StartsAt = DateTime.UtcNow.AddDays(1), Capacity = 3, DurationMinutes = 60, Status = GroupTrainingStatus.Inactive };
         db.GroupTrainings.AddRange(past, inactive);
         await db.SaveChangesAsync();
-        var rows = (await client.GetFromJsonAsync<List<MemberGroupTrainingDto>>(Route(fixture.CenterId) + "?search=%20%20"))!;
+        var rows = (await client.GetFromJsonAsync<PagedResult<MemberGroupTrainingDto>>(Route(fixture.CenterId) + "?search=%20%20"))!.Items;
         Assert.Equal(new[] { fixture.FullAId, fixture.OpenId }, rows.Select(row => row.Id));
         foreach (var id in new[] { past.Id, inactive.Id })
             Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route(fixture.CenterId) + "/" + id)).StatusCode);
         (await db.Centers.SingleAsync(row => row.Id == fixture.CenterId)).IsActive = false;
         await db.SaveChangesAsync();
-        Assert.Empty((await client.GetFromJsonAsync<List<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!);
+        Assert.Empty((await client.GetFromJsonAsync<PagedResult<MemberGroupTrainingDto>>(Route(fixture.CenterId)))!.Items);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Route(fixture.CenterId) + "/" + fixture.OpenId)).StatusCode);
     }
 

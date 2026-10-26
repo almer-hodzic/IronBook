@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingRequests;
 using IronBook.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +18,9 @@ public sealed class MemberMyTrainingsController : ControllerBase
         _myTrainingsService = myTrainingsService;
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<TrainingRequestDto>>> Get(
+    public async Task<ActionResult<PagedResult<TrainingRequestDto>>> Get(
         [FromQuery] string? status,
-        CancellationToken cancellationToken)
+        [FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
     {
         TrainingRequestStatus? filter = null;
         if (!string.IsNullOrWhiteSpace(status))
@@ -32,7 +33,7 @@ public sealed class MemberMyTrainingsController : ControllerBase
             filter = Enum.Parse<TrainingRequestStatus>(value, ignoreCase: true);
         }
 
-        return Ok(await _myTrainingsService.GetAsync(filter, cancellationToken));
+        return Ok(await _myTrainingsService.GetAsync(filter, cancellationToken, pagination));
     }
 
     [HttpPost("{id:int}/cancel")]

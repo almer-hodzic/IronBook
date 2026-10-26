@@ -1,12 +1,13 @@
+using IronBook.Application.Common;
 using IronBook.Domain.Enums;
 
 namespace IronBook.Application.TrainingRequests;
 
 public interface IMemberMyTrainingsService
 {
-    Task<IReadOnlyList<TrainingRequestDto>> GetAsync(
+    Task<PagedResult<TrainingRequestDto>> GetAsync(
         TrainingRequestStatus? status = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<MemberTrainingCancellationResult> CancelAsync(
         int id,
