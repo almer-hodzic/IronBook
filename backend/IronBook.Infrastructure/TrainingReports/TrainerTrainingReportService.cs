@@ -50,6 +50,8 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
                 "The active trainer was not found.");
         }
 
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
         var trainingRequest = await _dbContext.TrainingRequests
             .AsTracking()
             .Include(request => request.Center)
@@ -103,6 +105,7 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
 
         _dbContext.TrainingReports.Add(report);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return TrainingReportCreateResult.Success(ToDto(report));
     }

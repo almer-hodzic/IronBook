@@ -62,7 +62,14 @@ public sealed class MemberTrainingRequestService : IMemberTrainingRequestService
             .Select(request => new ReservedInterval(request.RequestedStartAt, request.DurationMinutes))
             .ToListAsync(cancellationToken);
 
-        var reserved = reservedStarts;
+        var groupIntervals = await _dbContext.GroupTrainings.AsNoTracking()
+            .Where(group => group.TrainerProfileId == trainerId
+                && (group.Status == GroupTrainingStatus.Active || group.Status == GroupTrainingStatus.Full)
+                && group.StartsAt < rangeEnd
+                && group.StartsAt.AddMinutes(group.DurationMinutes) > rangeStart)
+            .Select(group => new ReservedInterval(group.StartsAt, group.DurationMinutes))
+            .ToListAsync(cancellationToken);
+        var reserved = reservedStarts.Concat(groupIntervals).ToList();
         var now = DateTime.UtcNow;
         var days = new List<TrainingAvailabilityDayDto>();
 

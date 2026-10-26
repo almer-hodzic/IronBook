@@ -24,6 +24,8 @@ public sealed class WorkflowConflictMiddleware(RequestDelegate next)
         || (HttpMethods.IsPost(context.Request.Method)
         && (context.Request.Path.StartsWithSegments("/api/admin/coaching-requests")
             || context.Request.Path.StartsWithSegments("/api/member/my-trainings")
+            || context.Request.Path == "/api/admin/group-trainings"
+            || context.Request.Path == "/api/trainer/training-reports"
             || context.Request.Path == "/api/memberships/checkout"
             || context.Request.Path.Value?.EndsWith("/enroll", StringComparison.Ordinal) == true
             || context.Request.Path.Value?.EndsWith("/training-requests", StringComparison.Ordinal) == true));

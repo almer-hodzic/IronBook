@@ -15,21 +15,27 @@ internal static class WorkflowTransaction
         var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            if (db.Database.IsSqlServer())
-            {
-                await db.Database.ExecuteSqlInterpolatedAsync($"""
-                    DECLARE @result int;
-                    EXEC @result = sys.sp_getapplock @Resource={resource},
-                        @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=15000;
-                    IF @result < 0 THROW 51000, 'Workflow lock could not be acquired. Try again.', 1;
-                    """, cancellationToken);
-            }
+            await AcquireAsync(db, resource, cancellationToken);
             return transaction;
         }
         catch
         {
             await transaction.DisposeAsync();
             throw;
+        }
+    }
+
+    public static async Task AcquireAsync(
+        IronBookDbContext db, string resource, CancellationToken cancellationToken)
+    {
+        if (db.Database.IsSqlServer())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                DECLARE @result int;
+                EXEC @result = sys.sp_getapplock @Resource={resource},
+                    @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=15000;
+                IF @result < 0 THROW 51000, 'Workflow lock could not be acquired. Try again.', 1;
+                """, cancellationToken);
         }
     }
 }

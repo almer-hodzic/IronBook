@@ -7,7 +7,21 @@ namespace IronBook.Infrastructure.TrainingRequests;
 internal static class TrainingSchedule
 {
     // Half-open intervals allow consecutive sessions. A trainer's time is center-independent.
-    public static Task<bool> ConflictsAsync(IronBookDbContext db, int trainerId,
+    public static async Task<bool> ConflictsAsync(IronBookDbContext db, int trainerId,
+        DateTime start, int durationMinutes, CancellationToken cancellationToken, int? excludeId = null)
+    {
+        if (await PersonalConflictsAsync(db, trainerId, start, durationMinutes, cancellationToken, excludeId))
+            return true;
+
+        var end = start.AddMinutes(durationMinutes);
+        return await db.GroupTrainings.AsNoTracking().AnyAsync(group =>
+            group.TrainerProfileId == trainerId
+            && (group.Status == GroupTrainingStatus.Active || group.Status == GroupTrainingStatus.Full)
+            && group.StartsAt < end && group.StartsAt.AddMinutes(group.DurationMinutes) > start,
+            cancellationToken);
+    }
+
+    public static Task<bool> PersonalConflictsAsync(IronBookDbContext db, int trainerId,
         DateTime start, int durationMinutes, CancellationToken cancellationToken, int? excludeId = null)
     {
         var end = start.AddMinutes(durationMinutes);

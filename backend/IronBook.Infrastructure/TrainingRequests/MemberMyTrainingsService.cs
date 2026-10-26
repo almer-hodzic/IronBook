@@ -61,6 +61,9 @@ public sealed class MemberMyTrainingsService : IMemberMyTrainingsService
         if (request is null) return new(null, MemberTrainingCancellationFailure.NotFound);
         if (!CoachingRequestRules.CanTransition(request.Status, TrainingRequestStatus.Cancelled))
             return new(null, MemberTrainingCancellationFailure.Conflict);
+        if (await _dbContext.TrainingReports.AsNoTracking()
+            .AnyAsync(report => report.TrainingRequestId == id, cancellationToken))
+            return new(null, MemberTrainingCancellationFailure.Conflict);
         var from = request.Status;
         request.Status = TrainingRequestStatus.Cancelled;
         request.UpdatedAt = DateTime.UtcNow;

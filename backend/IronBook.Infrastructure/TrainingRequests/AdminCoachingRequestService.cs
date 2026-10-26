@@ -203,6 +203,11 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             _dbContext, request.TrainerProfileId, request.RequestedStartAt, request.DurationMinutes, cancellationToken, request.Id))
             return AdminCoachingRequestActionResult.ConflictResult([new TrainingRequestValidationError("RequestedStartAt", "Trainer has an overlapping booking.")]);
 
+        if (targetStatus == TrainingRequestStatus.Cancelled && await _dbContext.TrainingReports.AsNoTracking()
+            .AnyAsync(report => report.TrainingRequestId == id, cancellationToken))
+            return AdminCoachingRequestActionResult.ConflictResult(
+                [new TrainingRequestValidationError("Status", "A request with a training report cannot be cancelled.")]);
+
         request.Status = targetStatus;
         request.UpdatedAt = DateTime.UtcNow;
         CoachingRequestHistory.Add(_dbContext, request, currentStatus, request.TrainerProfileId, _currentAccount?.AccountId, reason);

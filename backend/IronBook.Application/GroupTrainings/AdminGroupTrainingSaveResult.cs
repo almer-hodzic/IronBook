@@ -6,17 +6,24 @@ public sealed class AdminGroupTrainingSaveResult
         bool succeeded,
         bool notFound,
         AdminGroupTrainingDto? training,
-        IReadOnlyList<GroupTrainingValidationError> errors)
+        IReadOnlyList<GroupTrainingValidationError> errors,
+        bool conflict = false)
     {
         Succeeded = succeeded;
         NotFound = notFound;
         Training = training;
         Errors = errors;
+        Conflict = conflict;
     }
 
     public bool Succeeded { get; }
 
     public bool NotFound { get; }
+
+    public bool Conflict { get; }
+
+    public static AdminGroupTrainingSaveResult ScheduleConflict() =>
+        new(false, false, null, [], true);
 
     public AdminGroupTrainingDto? Training { get; }
 

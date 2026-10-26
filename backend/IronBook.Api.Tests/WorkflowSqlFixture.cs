@@ -68,7 +68,7 @@ internal sealed class WorkflowSqlFixture : IAsyncDisposable
         plan.MembershipPlanCenters.Add(new MembershipPlanCenter { CenterId = CenterId, IsActive = true });
         plan.MembershipPlanCenters.Add(new MembershipPlanCenter { CenterId = OtherCenterId, IsActive = true });
         var group = new GroupTraining { Name = "Test Session", CenterId = CenterId, TrainerProfileId = TrainerId,
-            StartsAt = Slot, DurationMinutes = 60, Capacity = 1 };
+            StartsAt = Slot.AddHours(3), DurationMinutes = 60, Capacity = 1 };
         db.AddRange(plan, group);
         await db.SaveChangesAsync();
         PlanId = plan.Id; GroupId = group.Id;

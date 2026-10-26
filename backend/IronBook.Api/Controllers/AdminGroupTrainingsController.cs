@@ -86,6 +86,11 @@ public sealed class AdminGroupTrainingsController : ControllerBase
             return NotFound();
         }
 
+        if (result.Conflict)
+        {
+            return Conflict(new { message = "Trainer has an overlapping personal training request." });
+        }
+
         foreach (var error in result.Errors)
         {
             ModelState.AddModelError(error.Field, error.Message);

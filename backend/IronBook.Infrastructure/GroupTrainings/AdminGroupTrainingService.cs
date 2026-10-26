@@ -2,6 +2,7 @@ using IronBook.Application.GroupTrainings;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Persistence;
+using IronBook.Infrastructure.TrainingRequests;
 using Microsoft.EntityFrameworkCore;
 
 namespace IronBook.Infrastructure.GroupTrainings;
@@ -72,11 +73,16 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         AdminGroupTrainingUpsertRequest request,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await WorkflowTransaction.BeginAsync(
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
         var values = await NormalizeAsync(request, null, cancellationToken);
         if (values.Errors.Count > 0)
         {
             return AdminGroupTrainingSaveResult.Invalid(values.Errors);
         }
+
+        if (await ConflictsWithPersonalTrainingAsync(values, cancellationToken))
+            return AdminGroupTrainingSaveResult.ScheduleConflict();
 
         var training = new GroupTraining
         {
@@ -97,6 +103,7 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
 
         _dbContext.GroupTrainings.Add(training);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var dto = await GetGroupTrainingByIdAsync(training.Id, cancellationToken);
         return AdminGroupTrainingSaveResult.Success(dto!);
@@ -108,7 +115,9 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await WorkflowTransaction.BeginAsync(
-            _dbContext, $"IronBook:group-enrollment:{id}", cancellationToken);
+            _dbContext, WorkflowTransaction.Scheduling, cancellationToken);
+        // Always acquire scheduling first, then the existing capacity/enrollment lock.
+        await WorkflowTransaction.AcquireAsync(_dbContext, $"IronBook:group-enrollment:{id}", cancellationToken);
         var training = await _dbContext.GroupTrainings
             .SingleOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 
@@ -122,6 +131,9 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         {
             return AdminGroupTrainingSaveResult.Invalid(values.Errors);
         }
+
+        if (await ConflictsWithPersonalTrainingAsync(values, cancellationToken))
+            return AdminGroupTrainingSaveResult.ScheduleConflict();
 
         training.Name = values.Name;
         training.Description = values.Description;
@@ -303,6 +315,13 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
             whoFor,
             errors);
     }
+
+    private Task<bool> ConflictsWithPersonalTrainingAsync(
+        NormalizedGroupTrainingRequest values, CancellationToken cancellationToken) =>
+        values.Status is GroupTrainingStatus.Active or GroupTrainingStatus.Full
+            ? TrainingSchedule.PersonalConflictsAsync(_dbContext, values.TrainerProfileId,
+                values.StartsAt, values.DurationMinutes, cancellationToken)
+            : Task.FromResult(false);
 
     private static string? NormalizeOptionalText(string? value)
     {
