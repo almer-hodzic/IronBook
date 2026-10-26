@@ -26,7 +26,7 @@ public class WorkflowIntegrityTests
         var detail = (await service.GetMembershipPlanByIdAsync(fixture.PlanId))!;
         Assert.Equal(2, detail.Centers.Count);
         Assert.All(detail.Centers, center => Assert.False(string.IsNullOrEmpty(center.CenterName)));
-        Assert.Equal(2, Assert.Single(await service.GetMembershipPlansAsync()).Centers.Count);
+        Assert.Equal(2, Assert.Single((await service.GetMembershipPlansAsync()).Items).Centers.Count);
         async Task Update(int[] centers)
         {
             db.ChangeTracker.Clear(); // Reproduce the original missing-navigation scenario.

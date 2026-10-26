@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Centers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,11 +19,12 @@ public sealed class AdminCentersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminCenterDto>>> GetCenters(
+    public async Task<ActionResult<PagedResult<AdminCenterDto>>> GetCenters(
         [FromQuery] string? search,
+        [FromQuery] PaginationRequest pagination,
         CancellationToken cancellationToken)
     {
-        var centers = await _adminCenterService.GetCentersAsync(search, cancellationToken);
+        var centers = await _adminCenterService.GetCentersAsync(search, cancellationToken, pagination);
 
         return Ok(centers);
     }

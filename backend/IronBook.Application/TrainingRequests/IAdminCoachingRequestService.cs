@@ -1,11 +1,13 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.TrainingRequests;
 
 public interface IAdminCoachingRequestService
 {
-    Task<IReadOnlyList<AdminCoachingRequestDto>> GetCoachingRequestsAsync(
+    Task<PagedResult<AdminCoachingRequestDto>> GetCoachingRequestsAsync(
         string? search = null,
         string? status = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<AdminCoachingRequestActionResult> ApproveAsync(
         int id,

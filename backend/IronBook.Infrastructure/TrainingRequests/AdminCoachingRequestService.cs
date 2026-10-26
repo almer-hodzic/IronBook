@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.TrainingRequests;
 using IronBook.Application.Auth;
 using IronBook.Domain.Rules;
@@ -22,10 +23,10 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
         _currentAccount = currentAccount;
     }
 
-    public async Task<IReadOnlyList<AdminCoachingRequestDto>> GetCoachingRequestsAsync(
+    public async Task<PagedResult<AdminCoachingRequestDto>> GetCoachingRequestsAsync(
         string? search = null,
         string? status = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
         var query = _dbContext.TrainingRequests
             .AsNoTracking()
@@ -55,14 +56,15 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
             }
             else
             {
-                return [];
+                query = query.Where(request => false);
             }
         }
 
         return await query
             .OrderBy(request => request.RequestedStartAt)
             .ThenBy(request => request.Id)
-            .Select(request => new AdminCoachingRequestDto(
+            .ToPagedResultAsync(pagination, page => page
+                .Select(request => new AdminCoachingRequestDto(
                 request.Id,
                 request.CenterId,
                 request.Center.Name,
@@ -75,8 +77,7 @@ public sealed class AdminCoachingRequestService : IAdminCoachingRequestService
                 request.Status.ToString(),
                 request.FitnessGoal,
                 request.Note,
-                request.CreatedAt))
-            .ToListAsync(cancellationToken);
+                request.CreatedAt)), cancellationToken);
     }
 
     public async Task<AdminCoachingRequestActionResult> ApproveAsync(

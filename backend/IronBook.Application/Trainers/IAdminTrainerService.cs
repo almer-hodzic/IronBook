@@ -1,10 +1,12 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.Trainers;
 
 public interface IAdminTrainerService
 {
-    Task<IReadOnlyList<AdminTrainerDto>> GetTrainersAsync(
+    Task<PagedResult<AdminTrainerDto>> GetTrainersAsync(
         string? search = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<AdminTrainerDto?> GetTrainerByIdAsync(
         int id,

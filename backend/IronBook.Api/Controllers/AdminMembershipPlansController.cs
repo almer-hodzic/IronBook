@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.MembershipPlans;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,11 +19,12 @@ public sealed class AdminMembershipPlansController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminMembershipPlanDto>>> GetMembershipPlans(
+    public async Task<ActionResult<PagedResult<AdminMembershipPlanDto>>> GetMembershipPlans(
         [FromQuery] string? search,
+        [FromQuery] PaginationRequest pagination,
         CancellationToken cancellationToken)
     {
-        var plans = await _membershipPlanService.GetMembershipPlansAsync(search, cancellationToken);
+        var plans = await _membershipPlanService.GetMembershipPlansAsync(search, cancellationToken, pagination);
 
         return Ok(plans);
     }

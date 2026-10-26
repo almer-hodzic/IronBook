@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Payments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -11,11 +12,11 @@ namespace IronBook.Api.Controllers;
 public sealed class AdminPaymentsController(IAdminPaymentService paymentService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminPaymentDto>>> Get(
+    public async Task<ActionResult<PagedResult<AdminPaymentDto>>> Get(
         [FromQuery] string? search, [FromQuery] string? status, [FromQuery] string? paymentMethod,
-        [FromQuery] int? centerId, CancellationToken cancellationToken)
+        [FromQuery] int? centerId, [FromQuery] PaginationRequest pagination, CancellationToken cancellationToken)
     {
-        var result = await paymentService.GetPaymentsAsync(new(search, status, paymentMethod, centerId), cancellationToken);
+        var result = await paymentService.GetPaymentsAsync(new(search, status, paymentMethod, centerId), cancellationToken, pagination);
         if (result.Errors.Count == 0) return Ok(result.Payments);
         foreach (var error in result.Errors)
             foreach (var message in error.Value) ModelState.AddModelError(error.Key, message);

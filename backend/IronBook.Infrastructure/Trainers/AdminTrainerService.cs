@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using System.Text.RegularExpressions;
 using IronBook.Application.Trainers;
 using IronBook.Domain.Entities;
@@ -20,9 +21,9 @@ public sealed partial class AdminTrainerService : IAdminTrainerService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<AdminTrainerDto>> GetTrainersAsync(
+    public async Task<PagedResult<AdminTrainerDto>> GetTrainersAsync(
         string? search = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
         var query = _dbContext.TrainerProfiles
             .AsNoTracking()
@@ -43,8 +44,9 @@ public sealed partial class AdminTrainerService : IAdminTrainerService
         return await query
             .OrderBy(trainer => trainer.FirstName)
             .ThenBy(trainer => trainer.LastName)
-            .Select(trainer => ToAdminDto(trainer))
-            .ToListAsync(cancellationToken);
+            .ThenBy(trainer => trainer.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(trainer => ToAdminDto(trainer)), cancellationToken);
     }
 
     public async Task<AdminTrainerDto?> GetTrainerByIdAsync(

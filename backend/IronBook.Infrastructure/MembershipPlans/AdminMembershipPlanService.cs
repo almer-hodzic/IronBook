@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.MembershipPlans;
 using IronBook.Domain.Entities;
 using IronBook.Infrastructure.Persistence;
@@ -18,9 +19,9 @@ public sealed class AdminMembershipPlanService : IAdminMembershipPlanService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<AdminMembershipPlanDto>> GetMembershipPlansAsync(
+    public async Task<PagedResult<AdminMembershipPlanDto>> GetMembershipPlansAsync(
         string? search = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
         var query = _dbContext.MembershipPlans.AsNoTracking()
             .Include(plan => plan.MembershipPlanCenters).ThenInclude(assignment => assignment.Center)
@@ -35,8 +36,9 @@ public sealed class AdminMembershipPlanService : IAdminMembershipPlanService
 
         return await query
             .OrderBy(plan => plan.Name)
-            .Select(plan => ToAdminDto(plan))
-            .ToListAsync(cancellationToken);
+            .ThenBy(plan => plan.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(plan => ToAdminDto(plan)), cancellationToken);
     }
 
     public async Task<AdminMembershipPlanDto?> GetMembershipPlanByIdAsync(

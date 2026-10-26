@@ -1,10 +1,12 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.MembershipPlans;
 
 public interface IAdminMembershipPlanService
 {
-    Task<IReadOnlyList<AdminMembershipPlanDto>> GetMembershipPlansAsync(
+    Task<PagedResult<AdminMembershipPlanDto>> GetMembershipPlansAsync(
         string? search = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null);
 
     Task<AdminMembershipPlanDto?> GetMembershipPlanByIdAsync(int id, CancellationToken cancellationToken = default);
 

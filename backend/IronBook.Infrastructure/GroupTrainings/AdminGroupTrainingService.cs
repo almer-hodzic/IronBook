@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.GroupTrainings;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
@@ -21,10 +22,10 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<AdminGroupTrainingDto>> GetGroupTrainingsAsync(
+    public async Task<PagedResult<AdminGroupTrainingDto>> GetGroupTrainingsAsync(
         string? search = null,
         int? centerId = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
         var query = _dbContext.GroupTrainings
             .AsNoTracking()
@@ -51,8 +52,9 @@ public sealed class AdminGroupTrainingService : IAdminGroupTrainingService
         return await query
             .OrderBy(training => training.StartsAt)
             .ThenBy(training => training.Name)
-            .Select(training => ToAdminDto(training))
-            .ToListAsync(cancellationToken);
+            .ThenBy(training => training.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(training => ToAdminDto(training)), cancellationToken);
     }
 
     public async Task<AdminGroupTrainingDto?> GetGroupTrainingByIdAsync(

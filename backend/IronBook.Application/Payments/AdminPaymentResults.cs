@@ -1,7 +1,9 @@
+using IronBook.Application.Common;
+
 namespace IronBook.Application.Payments;
 
 public sealed record AdminPaymentListResult(
-    IReadOnlyList<AdminPaymentDto> Payments,
+    PagedResult<AdminPaymentDto> Payments,
     IReadOnlyDictionary<string, string[]> Errors);
 
 public sealed record AdminPaymentConfirmationResult(AdminPaymentDto? Payment, bool NotFound, string? Error)

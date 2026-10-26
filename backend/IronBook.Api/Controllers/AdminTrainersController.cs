@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Trainers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,11 +19,12 @@ public sealed class AdminTrainersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminTrainerDto>>> GetTrainers(
+    public async Task<ActionResult<PagedResult<AdminTrainerDto>>> GetTrainers(
         [FromQuery] string? search,
+        [FromQuery] PaginationRequest pagination,
         CancellationToken cancellationToken)
     {
-        var trainers = await _trainerService.GetTrainersAsync(search, cancellationToken);
+        var trainers = await _trainerService.GetTrainersAsync(search, cancellationToken, pagination);
 
         return Ok(trainers);
     }

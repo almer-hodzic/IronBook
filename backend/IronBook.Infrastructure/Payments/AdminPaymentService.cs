@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Payments;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
@@ -9,15 +10,17 @@ namespace IronBook.Infrastructure.Payments;
 public sealed class AdminPaymentService(IronBookDbContext dbContext) : IAdminPaymentService
 {
     public async Task<AdminPaymentListResult> GetPaymentsAsync(
-        AdminPaymentFilter filter, CancellationToken cancellationToken = default)
+        AdminPaymentFilter filter, CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
+        pagination ??= new PaginationRequest();
+        pagination.Validate();
         var errors = new Dictionary<string, string[]>();
         var status = ParseFilter<PaymentStatus>(filter.Status, "Status", errors);
         var method = ParseFilter<PaymentMethod>(filter.PaymentMethod, "PaymentMethod", errors);
         if (filter.CenterId.HasValue &&
             !await dbContext.Centers.AnyAsync(center => center.Id == filter.CenterId, cancellationToken))
             errors["CenterId"] = ["The selected center does not exist."];
-        if (errors.Count > 0) return new([], errors);
+        if (errors.Count > 0) return new(new([], pagination.PageNumber, pagination.PageSize, 0), errors);
 
         var query = dbContext.Payments.AsNoTracking().AsQueryable();
         if (status.HasValue) query = query.Where(payment => payment.PaymentStatus == status);
@@ -31,8 +34,8 @@ public sealed class AdminPaymentService(IronBookDbContext dbContext) : IAdminPay
                 (payment.Membership.MemberProfile.FirstName + " " + payment.Membership.MemberProfile.LastName).ToUpper().Contains(term) ||
                 payment.Membership.MemberProfile.Email.ToUpper().Contains(term));
         }
-        var payments = await Project(query.OrderByDescending(payment => payment.CreatedAt).ThenByDescending(payment => payment.Id))
-            .ToListAsync(cancellationToken);
+        var payments = await query.OrderByDescending(payment => payment.CreatedAt).ThenByDescending(payment => payment.Id)
+            .ToPagedResultAsync(pagination, Project, cancellationToken);
         return new(payments, errors);
     }
 

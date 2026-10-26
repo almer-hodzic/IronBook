@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.Centers;
 using IronBook.Domain.Entities;
 using IronBook.Infrastructure.Persistence;
@@ -19,9 +20,9 @@ public sealed class AdminCenterService : IAdminCenterService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<AdminCenterDto>> GetCentersAsync(
+    public async Task<PagedResult<AdminCenterDto>> GetCentersAsync(
         string? search = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, PaginationRequest? pagination = null)
     {
         var query = _dbContext.Centers.AsNoTracking();
         var trimmedSearch = search?.Trim();
@@ -36,8 +37,9 @@ public sealed class AdminCenterService : IAdminCenterService
 
         return await query
             .OrderBy(center => center.Name)
-            .Select(center => ToDto(center))
-            .ToListAsync(cancellationToken);
+            .ThenBy(center => center.Id)
+            .ToPagedResultAsync(pagination, page => page
+                .Select(center => ToDto(center)), cancellationToken);
     }
 
     public async Task<AdminCenterDto?> GetCenterByIdAsync(int id, CancellationToken cancellationToken = default)

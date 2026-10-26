@@ -1,3 +1,4 @@
+using IronBook.Application.Common;
 using IronBook.Application.GroupTrainings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -18,12 +19,13 @@ public sealed class AdminGroupTrainingsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminGroupTrainingDto>>> GetGroupTrainings(
+    public async Task<ActionResult<PagedResult<AdminGroupTrainingDto>>> GetGroupTrainings(
         [FromQuery] string? search,
         [FromQuery] int? centerId,
+        [FromQuery] PaginationRequest pagination,
         CancellationToken cancellationToken)
     {
-        var trainings = await _groupTrainingService.GetGroupTrainingsAsync(search, centerId, cancellationToken);
+        var trainings = await _groupTrainingService.GetGroupTrainingsAsync(search, centerId, cancellationToken, pagination);
 
         return Ok(trainings);
     }
