@@ -26,7 +26,7 @@ using Xunit;
 
 namespace IronBook.Api.Tests;
 
-public class RecommendationIdentityTests
+public partial class RecommendationIdentityTests
 {
     [Theory]
     [InlineData(null, HttpStatusCode.Unauthorized)]
@@ -429,7 +429,7 @@ public class RecommendationIdentityTests
             return profile;
         }
         var other = AddMember("other-member");
-        var cold = AddMember("cold-member");
+        AddMember("cold-member");
         db.TrainingPreferences.AddRange(
             new TrainingPreference
             {
@@ -455,11 +455,16 @@ public class RecommendationIdentityTests
         var otherRecovery = Group(strengthTrainer, otherCenter, GroupTrainingCategory.Recovery, 4);
         var otherStrength = Group(otherTrainer, otherCenter, GroupTrainingCategory.Strength, 5);
         db.GroupTrainings.AddRange(strength, conditioning, recovery, performance, otherRecovery, otherStrength);
-        foreach (var profile in new[] { member, other, cold })
+        // Keep popularity evidence independent of the acting Members' enrollment exclusions.
+        var attendees = Enumerable.Range(1, 3).Select(index => new MemberProfile
+        {
+            FirstName = "Attendee", LastName = index.ToString(), Email = $"attendee-{index}@example.invalid"
+        }).ToArray();
+        foreach (var profile in attendees)
             db.GroupTrainingEnrollments.Add(new GroupTrainingEnrollment { GroupTraining = recovery, MemberProfile = profile });
-        foreach (var profile in new[] { member, other })
+        foreach (var profile in attendees.Take(2))
             db.GroupTrainingEnrollments.Add(new GroupTrainingEnrollment { GroupTraining = conditioning, MemberProfile = profile });
-        db.GroupTrainingEnrollments.Add(new GroupTrainingEnrollment { GroupTraining = strength, MemberProfile = member });
+        db.GroupTrainingEnrollments.Add(new GroupTrainingEnrollment { GroupTraining = strength, MemberProfile = attendees[0] });
         void Requests(TrainerProfile trainer, Center at, TrainingRequestStatus status, int count)
         {
             for (var index = 0; index < count; index++)

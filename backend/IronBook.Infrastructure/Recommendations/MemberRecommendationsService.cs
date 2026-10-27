@@ -37,6 +37,7 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
             preferences.PrimaryGoal, preferences.Interests.Select(interest => interest.Category));
         var isPersonalized = memberVector is not null && memberVector.Any(value => value != 0);
 
+        var now = DateTime.UtcNow;
         // All content and popularity queries are restricted to the requested center before ranking.
         var trainers = await _dbContext.TrainerProfiles.AsNoTracking()
             .Where(trainer => trainer.IsActive && trainer.TrainerCenterAssignments.Any(assignment =>
@@ -45,7 +46,9 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
             {
                 trainer.Id,
                 Name = trainer.FirstName + " " + trainer.LastName,
-                Categories = trainer.GroupTrainings.Where(training => training.CenterId == centerId)
+                Categories = trainer.GroupTrainings.Where(training => training.CenterId == centerId &&
+                    (training.Status == GroupTrainingStatus.Active || training.Status == GroupTrainingStatus.Full) &&
+                    training.StartsAt.AddMinutes(training.DurationMinutes) > now)
                     .Select(training => training.Category).Distinct().ToList(),
                 ApprovedCount = trainer.TrainingRequests.Count(request =>
                     request.CenterId == centerId && request.Status == TrainingRequestStatus.Approved)
@@ -76,13 +79,14 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
             .ThenBy(trainer => trainer.Id)
             .ToList();
 
-        var now = DateTime.UtcNow;
         var trainings = await _dbContext.GroupTrainings.AsNoTracking()
             .Where(training => training.CenterId == centerId &&
                 training.Status == GroupTrainingStatus.Active && training.StartsAt > now &&
                 training.Capacity > 0 && training.TrainerProfile.IsActive &&
                 training.TrainerProfile.TrainerCenterAssignments.Any(assignment =>
-                    assignment.CenterId == centerId && assignment.IsActive))
+                    assignment.CenterId == centerId && assignment.IsActive) &&
+                !training.Enrollments.Any(enrollment => enrollment.MemberProfileId == member.Id &&
+                    enrollment.Status == GroupTrainingEnrollmentStatus.Enrolled))
             .Select(training => new
             {
                 training.Id,
