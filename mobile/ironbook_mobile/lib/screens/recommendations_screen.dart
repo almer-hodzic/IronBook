@@ -180,6 +180,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         ),
                         if (trainer.similarity != null)
                           _score(trainer.similarity!),
+                        if (trainer.reasons.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _RecommendationReasons(
+                            key: ValueKey('trainer-reasons-${trainer.id}'),
+                            reasons: trainer.reasons,
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         IronBookMobileButton.secondary(
                           onPressed: () => _openTrainer(trainer),
@@ -225,6 +232,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         ),
                         if (training.similarity != null)
                           _score(training.similarity!),
+                        if (training.reasons.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _RecommendationReasons(
+                            key: ValueKey('group-reasons-${training.id}'),
+                            reasons: training.reasons,
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         IronBookMobileButton.secondary(
                           onPressed: () => _openTraining(training),
@@ -239,6 +253,24 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           );
         },
       ),
+    ],
+  );
+}
+
+class _RecommendationReasons extends StatelessWidget {
+  const _RecommendationReasons({super.key, required this.reasons});
+
+  final List<String> reasons;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final reason in reasons)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(reason, style: Theme.of(context).textTheme.bodySmall),
+        ),
     ],
   );
 }

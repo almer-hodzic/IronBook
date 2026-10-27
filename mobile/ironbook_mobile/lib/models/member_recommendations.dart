@@ -36,6 +36,7 @@ class TrainerRecommendation {
     required this.categories,
     required this.similarity,
     required this.approvedCoachingRequestCount,
+    this.reasons = const [],
   });
 
   final int id;
@@ -43,6 +44,7 @@ class TrainerRecommendation {
   final List<String> categories;
   final double? similarity;
   final int approvedCoachingRequestCount;
+  final List<String> reasons;
 
   factory TrainerRecommendation.fromJson(Map<String, dynamic> json) {
     final categories = _read<List>(json, 'categories');
@@ -58,6 +60,7 @@ class TrainerRecommendation {
         json,
         'approvedCoachingRequestCount',
       ),
+      reasons: _reasons(json),
     );
   }
 }
@@ -73,6 +76,7 @@ class GroupTrainingRecommendation {
     required this.enrollmentCount,
     required this.fillRatio,
     required this.similarity,
+    this.reasons = const [],
   });
 
   final int id;
@@ -84,6 +88,7 @@ class GroupTrainingRecommendation {
   final int enrollmentCount;
   final double fillRatio;
   final double? similarity;
+  final List<String> reasons;
 
   factory GroupTrainingRecommendation.fromJson(Map<String, dynamic> json) =>
       GroupTrainingRecommendation(
@@ -96,7 +101,17 @@ class GroupTrainingRecommendation {
         enrollmentCount: _read<int>(json, 'enrollmentCount'),
         fillRatio: _read<num>(json, 'fillRatio').toDouble(),
         similarity: _number(json, 'similarity'),
+        reasons: _reasons(json),
       );
+}
+
+List<String> _reasons(Map<String, dynamic> json) {
+  final reasons = json['reasons'];
+  if (reasons == null) return const [];
+  if (reasons is! List || reasons.any((reason) => reason is! String)) {
+    throw const FormatException('Invalid recommendation reasons.');
+  }
+  return List<String>.from(reasons);
 }
 
 T _read<T>(Map<String, dynamic> json, String key) {
