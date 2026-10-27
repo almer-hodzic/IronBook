@@ -578,13 +578,31 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<Guid?>("StripeCheckoutKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StripePaymentIntentId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("MembershipId");
 
                     b.HasIndex("PaymentStatus");
 
-                    b.ToTable("Payments");
+                    b.HasIndex("StripeCheckoutKey")
+                        .IsUnique()
+                        .HasFilter("[StripeCheckoutKey] IS NOT NULL");
+
+                    b.HasIndex("StripePaymentIntentId")
+                        .IsUnique()
+                        .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+                    b.ToTable("Payments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Payments_StripeCard", "([StripeCheckoutKey] IS NULL AND [StripePaymentIntentId] IS NULL) OR ([PaymentMethod] = 'Card' AND [StripeCheckoutKey] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("IronBook.Domain.Entities.TrainerCenterAssignment", b =>

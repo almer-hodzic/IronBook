@@ -77,6 +77,9 @@ builder.Services.AddScoped<IMemberNotificationService, MemberNotificationService
 builder.Services.AddScoped<IMemberProfileService, MemberProfileService>();
 builder.Services.AddScoped<IAdminReportService, AdminReportService>();
 builder.Services.AddScoped<IAdminPaymentService, AdminPaymentService>();
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
+builder.Services.AddScoped<ICardPaymentGateway, StripeCardPaymentGateway>();
+builder.Services.AddScoped<IMembershipCardPaymentService, MembershipCardPaymentService>();
 builder.Services.AddSingleton<RabbitMqNotificationPublisher>();
 builder.Services.AddHostedService<NotificationOutboxDispatcher>();
 builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>

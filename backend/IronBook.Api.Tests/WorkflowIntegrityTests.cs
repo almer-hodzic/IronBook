@@ -229,7 +229,7 @@ public class WorkflowIntegrityTests
     }
 
     [Theory]
-    [InlineData("Card", MembershipStatus.Active, PaymentStatus.Completed)]
+    [InlineData("Card", MembershipStatus.Pending, PaymentStatus.PendingCard)]
     [InlineData("Reception", MembershipStatus.Pending, PaymentStatus.PendingReception)]
     public async Task SQL_checkout_competition_is_atomic_and_keeps_server_price(string method, MembershipStatus status, PaymentStatus paymentStatus)
     {
@@ -237,7 +237,8 @@ public class WorkflowIntegrityTests
         async Task<MembershipCheckoutResult> Submit(bool race)
         {
             await using var db = race ? fixture.CreateDb(gate) : fixture.CreateDb();
-            return await new MembershipCheckoutService(db, new MemberIdentity(fixture.Member))
+            var member = new MemberIdentity(fixture.Member);
+            return await new MembershipCheckoutService(db, member, TestCardPaymentGateway.Service(db, member))
                 .CheckoutAsync(new(fixture.CenterId, fixture.PlanId, method));
         }
         var results = await Task.WhenAll(Submit(true), Submit(true));
@@ -255,7 +256,8 @@ public class WorkflowIntegrityTests
     {
         await using var fixture = await CreateAsync();
         await using (var db = fixture.CreateDb(new FailSave<Payment>()))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new MembershipCheckoutService(db, new MemberIdentity(fixture.Member))
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new MembershipCheckoutService(db, new MemberIdentity(fixture.Member),
+                TestCardPaymentGateway.Service(db, new MemberIdentity(fixture.Member)))
                 .CheckoutAsync(new(fixture.CenterId, fixture.PlanId, "Card")));
         await using var verify = fixture.CreateDb();
         Assert.Empty(await verify.Memberships.ToListAsync()); Assert.Empty(await verify.Payments.ToListAsync());
@@ -282,7 +284,8 @@ public class WorkflowIntegrityTests
         await using var verify = fixture.CreateDb();
         var membership = await verify.Memberships.SingleAsync(); membership.Status = MembershipStatus.Expired;
         await verify.SaveChangesAsync();
-        Assert.True((await new MembershipCheckoutService(verify, new MemberIdentity(fixture.Member))
+        Assert.True((await new MembershipCheckoutService(verify, new MemberIdentity(fixture.Member),
+            TestCardPaymentGateway.Service(verify, new MemberIdentity(fixture.Member)))
             .CheckoutAsync(new(fixture.CenterId, fixture.PlanId, "Reception"))).Succeeded);
         Assert.Equal(2, await verify.Memberships.CountAsync());
     }

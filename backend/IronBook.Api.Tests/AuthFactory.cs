@@ -5,6 +5,7 @@ using IronBook.Domain.Security;
 using IronBook.Infrastructure.Auth;
 using IronBook.Infrastructure.Persistence;
 using IronBook.Infrastructure.Memberships;
+using IronBook.Application.Payments;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -50,6 +51,8 @@ public sealed class AuthFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<IronBookDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<IronBookDbContext>>();
             services.AddDbContext<IronBookDbContext>(options => options.UseSqlite(_connection));
+            services.AddSingleton<TestCardPaymentGateway>();
+            services.AddSingleton<ICardPaymentGateway>(provider => provider.GetRequiredService<TestCardPaymentGateway>());
             // Real QR service with a separate ephemeral key, confined to test fixtures.
             if (!_useConfiguredQr) services.AddSingleton<IMembershipAccessTokenService>(new MembershipAccessTokenService(
                 Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))));

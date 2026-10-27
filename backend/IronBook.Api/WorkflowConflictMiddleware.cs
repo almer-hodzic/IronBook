@@ -27,6 +27,9 @@ public sealed class WorkflowConflictMiddleware(RequestDelegate next)
             || context.Request.Path == "/api/admin/group-trainings"
             || context.Request.Path == "/api/trainer/training-reports"
             || context.Request.Path == "/api/memberships/checkout"
+            || (context.Request.Path.StartsWithSegments("/api/memberships") &&
+                (context.Request.Path.Value?.EndsWith("/card-payment", StringComparison.Ordinal) == true ||
+                    context.Request.Path.Value?.EndsWith("/complete-card", StringComparison.Ordinal) == true))
             || context.Request.Path.Value?.EndsWith("/enroll", StringComparison.Ordinal) == true
             || context.Request.Path.Value?.EndsWith("/training-requests", StringComparison.Ordinal) == true));
 }

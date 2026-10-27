@@ -39,7 +39,7 @@ public class MembershipIdentityTests
     }
 
     [Theory]
-    [InlineData("Card", MembershipStatus.Active, PaymentStatus.Completed, true)]
+    [InlineData("Card", MembershipStatus.Pending, PaymentStatus.PendingCard, false)]
     [InlineData("Reception", MembershipStatus.Pending, PaymentStatus.PendingReception, false)]
     public async Task Checkout_and_My_Membership_preserve_ownership_price_dates_payment_and_QR(
         string method, MembershipStatus membershipStatus, PaymentStatus paymentStatus, bool hasQr)
@@ -169,7 +169,7 @@ public class MembershipIdentityTests
             .AddInterceptors(new FailPaymentSave()).Options;
         await using var db = new IronBookDbContext(options);
         var currentMember = new CurrentMemberService(db, new TestAccountContext(accountId));
-        var checkout = new MembershipCheckoutService(db, currentMember);
+        var checkout = new MembershipCheckoutService(db, currentMember, TestCardPaymentGateway.Service(db, currentMember));
         await Assert.ThrowsAsync<InvalidOperationException>(() => checkout.CheckoutAsync(new MembershipCheckoutRequest(fixture.CenterId, fixture.PlanId, "Card")));
         Assert.Single(await original.Memberships.ToListAsync());
         Assert.Single(await original.Payments.ToListAsync());

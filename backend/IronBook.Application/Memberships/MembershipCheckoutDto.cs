@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace IronBook.Application.Memberships;
 
 public sealed record MembershipCheckoutDto(
@@ -12,4 +14,10 @@ public sealed record MembershipCheckoutDto(
     string PaymentStatus,
     string MembershipStatus,
     DateTime StartDate,
-    DateTime EndDate);
+    DateTime EndDate)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CardPaymentDto? CardPayment { get; init; }
+}
+
+public sealed record CardPaymentDto(string PaymentIntentId, string ClientSecret, string Currency, string Status);

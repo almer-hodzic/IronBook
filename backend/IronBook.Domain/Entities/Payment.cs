@@ -16,5 +16,9 @@ public class Payment
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public Guid? StripeCheckoutKey { get; set; }
+
+    public string? StripePaymentIntentId { get; set; }
+
     public Membership Membership { get; set; } = null!;
 }

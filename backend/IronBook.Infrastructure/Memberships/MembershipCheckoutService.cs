@@ -1,5 +1,6 @@
 using IronBook.Application.Memberships;
 using IronBook.Application.Auth;
+using IronBook.Application.Payments;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Infrastructure.Persistence;
@@ -11,13 +12,16 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
 {
     private readonly IronBookDbContext _dbContext;
     private readonly ICurrentMemberService _memberResolver;
+    private readonly IMembershipCardPaymentService _cardPayments;
 
     public MembershipCheckoutService(
         IronBookDbContext dbContext,
-        ICurrentMemberService memberResolver)
+        ICurrentMemberService memberResolver,
+        IMembershipCardPaymentService cardPayments)
     {
         _dbContext = dbContext;
         _memberResolver = memberResolver;
+        _cardPayments = cardPayments;
     }
 
     public async Task<MembershipCheckoutResult> CheckoutAsync(
@@ -84,14 +88,22 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
                 "An active or pending membership already exists for this member, center, and plan.");
         }
 
+        if (paymentMethod == PaymentMethod.Card)
+        {
+            try
+            {
+                _cardPayments.EnsureConfigured();
+                _ = MembershipCardPaymentService.MinorUnits(plan.MonthlyPrice);
+            }
+            catch (CardPaymentGatewayException) { return MembershipCheckoutResult.Unavailable(); }
+        }
+
         var utcNow = DateTime.UtcNow;
         var startDate = utcNow.Date;
         var endDate = startDate.AddMonths(1);
-        var membershipStatus = paymentMethod == PaymentMethod.Card
-            ? MembershipStatus.Active
-            : MembershipStatus.Pending;
+        var membershipStatus = MembershipStatus.Pending;
         var paymentStatus = paymentMethod == PaymentMethod.Card
-            ? PaymentStatus.Completed
+            ? PaymentStatus.PendingCard
             : PaymentStatus.PendingReception;
 
         var membership = new Membership
@@ -114,12 +126,19 @@ public sealed class MembershipCheckoutService : IMembershipCheckoutService
             Amount = plan.MonthlyPrice,
             PaymentMethod = paymentMethod,
             PaymentStatus = paymentStatus,
+            StripeCheckoutKey = paymentMethod == PaymentMethod.Card ? Guid.NewGuid() : null,
             CreatedAt = utcNow
         };
 
         _dbContext.Payments.Add(payment);
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        if (paymentMethod == PaymentMethod.Card)
+        {
+            var prepared = await _cardPayments.PrepareAsync(membership.Id, cancellationToken);
+            return prepared.Succeeded ? MembershipCheckoutResult.Success(prepared.Checkout!) : prepared;
+        }
 
         return MembershipCheckoutResult.Success(
             new MembershipCheckoutDto(
