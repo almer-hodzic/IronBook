@@ -1,10 +1,10 @@
-# Stripe sandbox membership checkout (Payments Part 1)
+# Stripe sandbox membership checkout (Payments Parts 1 and 2)
 
 ## Previous flow and chosen integration
 
 Previously `MembershipCheckoutService` created a Membership and Payment inside the checkout transaction. Card immediately produced Active/Completed without contacting a payment provider. Reception produced Pending/PendingReception. Amount came from `MembershipPlan.MonthlyPrice`, dates were UTC today through `StartDate.AddMonths(1)`, and authenticated Account -> linked MemberProfile determined ownership. An Active or Pending membership at the same Member/Center/Plan prevented another purchase.
 
-This task replaces only simulated Card completion with the official `Stripe.net` 53.0.0 SDK and a sandbox PaymentIntent. A one-off PaymentIntent/client secret fits the later native mobile payment-sheet flow without introducing a hosted browser checkout, customer accounts, saved payment methods or subscriptions. IronBook never accepts PAN/CVC or raw payment-method data. Flutter is unchanged in this part and cannot yet complete the new Card flow.
+Part 1 replaced simulated Card completion with the official `Stripe.net` 53.0.0 SDK and a sandbox PaymentIntent. Part 2 adds the Android Flutter PaymentSheet continuation described below. This does not introduce a hosted browser checkout, customer accounts, saved payment methods or subscriptions. IronBook never accepts PAN/CVC or raw payment-method data.
 
 References: [PaymentIntent retrieval](https://docs.stripe.com/api/payment_intents/retrieve), [native payment sheets](https://docs.stripe.com/payments/mobile/accept-payment), [payment states](https://docs.stripe.com/payments/paymentintents/lifecycle), [idempotent requests](https://docs.stripe.com/api/idempotent_requests), [sandbox testing](https://docs.stripe.com/testing).
 
@@ -13,7 +13,7 @@ References: [PaymentIntent retrieval](https://docs.stripe.com/api/payment_intent
 | Setting | Use |
 | --- | --- |
 | `Stripe:SecretKey` / `Stripe__SecretKey` | Required when Card flow is used. Supply a private `sk_test_...` sandbox key through local user secrets or environment configuration. Never commit the value. |
-| Future client publishable key | Payments Part 2 must configure its matching `pk_test_...` key on the client. The backend does not need/store/expose it. |
+| `--dart-define=STRIPE_PUBLISHABLE_KEY=...` | Android client uses the matching sandbox publishable key. No real value is committed. The backend does not need/store/expose it. |
 | Currency | Fixed `eur`; it matches the existing mobile EUR price labels. Neither client input nor environment can override purchase currency. |
 
 `.env.example` contains only a Stripe placeholder; Compose forwards `Stripe__SecretKey` to the API. No Stripe credentials are needed by the notification worker. Missing/blank/placeholder/live keys fail safely with 503 when Card is used, in every environment. Startup, public reads and Reception do not require Stripe configuration. Configuration is not silently replaced by fabricated credentials.
@@ -136,15 +136,68 @@ No usable Stripe sandbox key was present in checked local configuration during i
 1. Use a sandbox account and put its test secret in local user secrets or `Stripe__SecretKey`; never add the value to tracked files or logs. Start the backend with existing private JWT/QR configuration and the migrated database.
 2. Use an approved existing active Center/plan assignment with a positive supported EUR price. If `190027` still lacks suitable business records, use a disposable QA database populated by the tester, not fabricated records added to `190027` for this task.
 3. Login as Member through `/api/auth/login`, retain its Bearer token locally and call `/api/memberships/checkout` with Card and only the three documented business fields. Verify Pending/PendingCard, the plan amount, persisted intent ID/key and absence of QR access.
-4. Confirm that intent using Stripe's sandbox tooling or the later mobile SDK. A CLI example is `stripe payment_intents confirm <intent-id> --payment-method=pm_card_visa`, using a CLI session configured for the same sandbox. Never send raw card numbers/CVC to IronBook. Use the official test PaymentMethod from Stripe's testing guide, not a fabricated successful status.
+4. Confirm that intent using Stripe's sandbox tooling or the mobile SDK described below. A CLI example is `stripe payment_intents confirm <intent-id> --payment-method=pm_card_visa`, using a CLI session configured for the same sandbox. Never send raw card numbers/CVC to IronBook. Use the official test PaymentMethod from Stripe's testing guide, not a fabricated successful status.
 5. Call the authenticated bodyless `complete-card` route. Verify 200, Completed/Active, unchanged IDs/amount/dates and existing QR access. Repeat it and verify one Membership/Payment remains.
 6. Repeat in separate disposable QA purchases with an incomplete intent (202), an official decline test method (409 after verification), and a Stripe-cancelled intent (Cancelled/Cancelled). Use resume for an interrupted/declined attempt; ensure it keeps the same intent/Payment.
 7. Check another Member gets the same 404 as a missing Membership, anonymous/wrong roles get 401/403, and a Reception purchase/admin confirmation remains independent of Stripe. Never manually flip a local status to simulate success.
 
 ## Deferred work and limits
 
-Flutter Stripe UI, native authentication/3DS interaction, matching publishable-key configuration and client recovery are Payments Part 2. Current Flutter still calls the old checkout UI; Card no longer grants immediate membership activation. Refunds, disputes, saved cards, subscriptions and Admin refund UI are not implemented.
+Android Flutter Stripe UI, publishable-key configuration and client recovery are implemented in Part 2. Real native confirmation/3DS remains a manual QA requirement without matching sandbox credentials. Refunds, disputes, saved cards, subscriptions and Admin refund UI are not implemented.
 
 Webhooks are intentionally deferred for this explicitly verified RSII sandbox flow. A successful Stripe payment stays locally Pending until the owning authenticated Member invokes verification, including after a client crash. No automatic reconciliation/fulfillment guarantee is claimed. A later production deployment needs a separately reviewed webhook/reconciliation strategy. There is no background polling, cancellation endpoint, provider-driven notification or additional worker infrastructure here.
 
 Original monthly dates are preserved, so delayed payment does not restart the membership period. Expired paid reservations and uncorrelated attempts beyond the idempotency safety window require manual reconciliation; automatic refunds/repair are deferred. SDK transport success against a real Stripe sandbox is unverified without credentials. Live keys and live-mode intents are explicitly refused in this Part 1 implementation.
+
+## Flutter Android Card flow (Payments Part 2)
+
+The previous mobile Review & Payment screen navigated straight to Membership Confirmed after any successful checkout response. It did not parse `cardPayment`, invoke Stripe, verify completion or recover a pending Card purchase. That was no longer sufficient once the backend stopped simulating Card success.
+
+The mobile app now uses [`flutter_stripe` 14.2.0](https://pub.dev/packages/flutter_stripe) and its [PaymentSheet](https://docs.page/flutter-stripe/flutter_stripe/sheet). A small injectable `StripePaymentClient` wraps configuration and SDK confirmation. Card details go directly through Stripe's native UI; widgets, the IronBook API and test fixtures never collect raw card data. There is no Customer, saved card, Google Pay, Apple Pay or custom card form.
+
+Run from `mobile/ironbook_mobile`, supplying the publishable key privately from the matching sandbox:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5100 --dart-define=STRIPE_PUBLISHABLE_KEY=<matching-sandbox-publishable-key>
+```
+
+The placeholder must be replaced locally; it is not a usable key. Existing `API_BASE_URL` configuration remains authoritative. No Stripe secret belongs in a Dart define. Initialization is lazy, Android-only and sandbox-only: a missing/invalid/live publishable key gives a controlled Card error before reserving a purchase. Startup, Trainer features and Reception do not initialize Stripe or require that key.
+
+1. Card checkout first checks My Membership for an existing pending Card purchase at the selected Center/plan. It resumes that purchase if found; otherwise it posts only `centerId`, `membershipPlanId` and `paymentMethod: Card` to checkout. It does not send amount, currency or acting-Member identity. Backend pricing remains authoritative.
+2. The returned `cardPayment.clientSecret` is passed to `initPaymentSheet` and `presentPaymentSheet`. The existing checkout summary remains; a small Card continuation screen shows preparing, confirmation and verification states. Repeated taps are disabled. SDK exception text/client secrets are never shown or logged.
+3. After the sheet returns, including cancellation/interruption, the app calls bodyless authenticated `complete-card`. Already-succeeded/processing intents recovered from the backend go straight to verification. Only backend `Card / Completed / Active` allows success UI. An SDK return alone never activates anything locally.
+4. Success reloads `GET /api/memberships/my` before the confirmation screen. View My Membership reloads through the existing screen and QR logic. A failed post-payment reload offers Reload Membership without another SDK confirmation or checkout.
+5. Pending, Failed, provider/network errors and closed sheets remain recoverable. Continue Card Payment uses bodyless authenticated `card-payment` for the same Membership ID, then confirms/verifies as appropriate. Closing the sheet is not treated as a provider-cancelled intent. A backend Cancelled result shows cancellation without activation or another payment attempt for that purchase.
+6. My Membership exposes Continue Card Payment only for a Pending Membership with Card and PendingCard/Failed payment. Checkout retains IDs returned by reservation errors. After an ambiguous lost initiation response it checks My Membership rather than blindly issuing another checkout; if no matching purchase is visible, it stops with a controlled message. The existing My Membership precedence limitation when another Active membership hides a pending purchase remains; there is no new payment-history API or local durable purchase store.
+
+Every membership call uses the existing `BearerHttpClient`/`AccessTokenProvider`. New recovery/completion requests have zero body bytes, no identity selector and no automatic auth retry, refresh or logout. HTTP statuses remain observable. Client secrets remain in memory only; this task adds no payment storage or logging.
+
+Reception still posts the same three business fields with `Reception`, displays the same pending-reception instructions and uses the existing My Membership screen. It never invokes Stripe, even when Stripe configuration is absent. Admin confirmation remains unchanged.
+
+### Android configuration and verification
+
+`MainActivity` now derives from `FlutterFragmentActivity`; light/night activity themes derive from AppCompat as required by the package. The existing Flutter minimum SDK is 24, which already exceeds the package's minimum 21, so no manifest/min-SDK change is needed. The selected Android plugin ships consumer ProGuard rules retaining Stripe/3DS classes and suppressing optional dependency warnings; those rules are not duplicated in the app. A full rebuild is needed after the native changes. No Windows Stripe integration is added; iOS payment support/configuration is outside this Android task.
+
+Automated tests replace the small Stripe abstraction with a fake. They cover parsing/nullable fields, missing configuration, selected Center/plan and exact request fields, Bearer/bodyless routes, status/error preservation, SDK cancellation/failure, incomplete/failed/cancelled verification, success and refresh, recovery/lost responses, duplicate taps, disposal, and unchanged Reception. Existing mobile tests continue to cover Trainer/auth/recommendation flows. No Stripe networking or `190027` writes are required by these tests.
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter test test/stripe_checkout_test.dart
+flutter build apk --debug
+```
+
+Part 2 validation: all 310 mobile tests passed (273 existing plus 37 focused payment tests), with zero failures. The standalone payment suite also passed all 37 tests; the analyzer reported zero issues and the Android debug APK built successfully. `flutter pub get`, full diff review and `git diff --check` passed. Backend, desktop, shared auth and database/schema/migrations were untouched. No matching local Stripe publishable/backend secret keys were available, so no real sandbox payment was performed.
+
+### Manual Android sandbox QA still required
+
+No real confirmation is claimed by mock tests or a successful APK build. Use matching sandbox keys, a running API and an approved existing purchase context (or a disposable QA database). Do not manufacture business records in `190027`.
+
+1. Login as Member, select an active Center/plan and choose Card. Confirm preparing/PaymentSheet appears and no Active membership is shown before verification.
+2. In Stripe's sheet only, use the [official test Visa](https://docs.stripe.com/testing) `4242 4242 4242 4242`, a future expiry and any three-digit CVC. Verify Completed/Active after backend verification, then View My Membership and the existing QR. Never use real card details.
+3. Use the official decline and 3DS test scenarios in the same guide. Check cancellation, decline and interrupted networking never imply Active; use Continue Card Payment and confirm no extra local purchase is created. Test native 3DS return on the target Android device.
+4. Close/reopen the app with a PendingCard purchase. My Membership must resume the existing ID. Test a lost initiation response and a lost completion response. Confirm recovery/verification uses the same purchase.
+5. Remove the publishable define: Card must show a controlled error, while Reception and Trainer features still work. Verify Reception remains PendingReception with its original instructions.
+
+Actual provider connectivity, native sheet behavior/3DS and matching-account credentials remain manual QA until that sandbox run is performed. Webhooks, refunds, automatic reconciliation, payment history redesign and desktop payment UI remain deferred.

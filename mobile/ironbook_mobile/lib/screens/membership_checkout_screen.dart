@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/membership_checkout.dart';
 import '../models/membership_plan.dart';
 import '../services/center_api_service.dart';
+import '../services/stripe_payment_client.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'membership_confirmation_screen.dart';
+import 'card_payment_screen.dart';
+import 'my_membership_screen.dart';
 
 class MembershipCheckoutScreen extends StatefulWidget {
   const MembershipCheckoutScreen({
@@ -14,12 +17,14 @@ class MembershipCheckoutScreen extends StatefulWidget {
     required this.centerName,
     required this.plan,
     required this.centerApiService,
+    this.stripeClient,
   });
 
   final int centerId;
   final String centerName;
   final MembershipPlan plan;
   final CenterApiService centerApiService;
+  final StripePaymentClient? stripeClient;
 
   @override
   State<MembershipCheckoutScreen> createState() =>
@@ -30,6 +35,10 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
   MembershipCheckoutPaymentMethod _paymentMethod =
       MembershipCheckoutPaymentMethod.card;
   bool _isSubmitting = false;
+  int? _pendingCardMembershipId;
+  bool _cardInitiationUncertain = false;
+  late final StripePaymentClient _stripe =
+      widget.stripeClient ?? NativeStripePaymentClient();
 
   Future<void> _confirmMembership() async {
     if (_isSubmitting) {
@@ -41,6 +50,33 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
     });
 
     try {
+      final isCard = _paymentMethod == MembershipCheckoutPaymentMethod.card;
+      if (isCard) {
+        await _stripe.ensureReady();
+        if (!mounted) return;
+        if (_pendingCardMembershipId == null) {
+          final existing = await widget.centerApiService.getMyMembership();
+          if (!mounted) return;
+          if (existing != null &&
+              existing.isPending &&
+              existing.paymentMethod == 'Card' &&
+              existing.centerId == widget.centerId &&
+              existing.membershipPlanId == widget.plan.id) {
+            _pendingCardMembershipId = existing.membershipId;
+          } else if (_cardInitiationUncertain) {
+            throw const CenterApiException(
+              'Checkout outcome is unknown. Check My Membership before attempting another purchase.',
+            );
+          }
+        }
+        if (_pendingCardMembershipId != null) {
+          await _openCardPayment(_pendingCardMembershipId!);
+          return;
+        }
+        // A lost response may still mean SQL reserved the purchase. Never
+        // automatically repeat creation; recover the existing membership first.
+        _cardInitiationUncertain = true;
+      }
       final result = await widget.centerApiService.checkoutMembership(
         centerId: widget.centerId,
         membershipPlanId: widget.plan.id,
@@ -48,6 +84,13 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
       );
 
       if (!mounted) {
+        return;
+      }
+
+      if (isCard) {
+        _cardInitiationUncertain = false;
+        _pendingCardMembershipId = result.membershipId;
+        await _openCardPayment(result.membershipId, initialCheckout: result);
         return;
       }
 
@@ -64,8 +107,20 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
         return;
       }
 
+      _pendingCardMembershipId ??= error.checkout?.membershipId;
+      // Definite input/authorization failures cannot have created a purchase.
+      if (error.statusCode == 400 ||
+          error.statusCode == 401 ||
+          error.statusCode == 403) {
+        _cardInitiationUncertain = false;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(error.message)));
+    } on CardPaymentException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -73,6 +128,23 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
         });
       }
     }
+  }
+
+  Future<void> _openCardPayment(
+    int membershipId, {
+    MembershipCheckoutResult? initialCheckout,
+  }) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CardPaymentScreen(
+          membershipId: membershipId,
+          initialCheckout: initialCheckout,
+          centerApiService: widget.centerApiService,
+          stripeClient: _stripe,
+        ),
+      ),
+    );
   }
 
   @override
@@ -90,17 +162,47 @@ class _MembershipCheckoutScreenState extends State<MembershipCheckoutScreen> {
         _PaymentMethodSection(
           selected: _paymentMethod,
           onChanged: (method) {
+            if (_isSubmitting ||
+                _pendingCardMembershipId != null ||
+                _cardInitiationUncertain) {
+              return;
+            }
             setState(() {
               _paymentMethod = method;
             });
           },
         ),
-        const _TermsSection(),
+        _TermsSection(
+          isCard: _paymentMethod == MembershipCheckoutPaymentMethod.card,
+        ),
         IronBookMobileButton.primary(
           onPressed: _isSubmitting ? null : _confirmMembership,
-          label: _isSubmitting ? 'Confirming...' : 'Confirm Membership',
+          label: _isSubmitting
+              ? _paymentMethod == MembershipCheckoutPaymentMethod.card
+                    ? 'Preparing payment...'
+                    : 'Confirming...'
+              : _pendingCardMembershipId != null
+              ? 'Continue Card Payment'
+              : 'Confirm Membership',
           icon: _isSubmitting ? Icons.hourglass_empty : Icons.lock_outline,
         ),
+        if (_pendingCardMembershipId != null || _cardInitiationUncertain)
+          IronBookMobileButton.secondary(
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MyMembershipScreen(
+                          centerApiService: widget.centerApiService,
+                          initialCenterId: widget.centerId,
+                          initialCenterName: widget.centerName,
+                        ),
+                      ),
+                    );
+                  },
+            label: 'View My Membership',
+          ),
       ],
     );
   }
@@ -160,7 +262,7 @@ class _PaymentMethodSection extends StatelessWidget {
             method: MembershipCheckoutPaymentMethod.card,
             selected: selected == MembershipCheckoutPaymentMethod.card,
             icon: Icons.credit_card,
-            description: 'Record card payment now.',
+            description: 'Pay securely using Stripe sandbox.',
             onTap: onChanged,
           ),
           const SizedBox(height: 9),
@@ -266,7 +368,8 @@ class _PaymentMethodTile extends StatelessWidget {
 }
 
 class _TermsSection extends StatelessWidget {
-  const _TermsSection();
+  const _TermsSection({required this.isCard});
+  final bool isCard;
 
   @override
   Widget build(BuildContext context) {
@@ -274,17 +377,19 @@ class _TermsSection extends StatelessWidget {
       muted: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(
+        children: [
+          const Icon(
             Icons.verified_user_outlined,
             color: IronBookMobileColors.slate600,
             size: 18,
           ),
-          SizedBox(width: 9),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
-              'The selected method is recorded by IronBook. No external payment gateway or card details are used.',
-              style: TextStyle(
+              isCard
+                  ? 'Stripe handles Card details. Membership activates only after IronBook verifies payment.'
+                  : 'The selected method is recorded by IronBook. No external payment gateway or card details are used.',
+              style: const TextStyle(
                 color: IronBookMobileColors.slate600,
                 fontSize: 12,
                 height: 1.45,

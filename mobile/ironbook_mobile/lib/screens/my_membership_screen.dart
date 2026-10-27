@@ -3,9 +3,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/my_membership.dart';
 import '../services/center_api_service.dart';
+import '../services/stripe_payment_client.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'membership_plans_screen.dart';
+import 'card_payment_screen.dart';
 
 class MyMembershipScreen extends StatefulWidget {
   const MyMembershipScreen({
@@ -13,11 +15,13 @@ class MyMembershipScreen extends StatefulWidget {
     required this.centerApiService,
     this.initialCenterId,
     this.initialCenterName,
+    this.stripeClient,
   });
 
   final CenterApiService centerApiService;
   final int? initialCenterId;
   final String? initialCenterName;
+  final StripePaymentClient? stripeClient;
 
   @override
   State<MyMembershipScreen> createState() => _MyMembershipScreenState();
@@ -48,6 +52,25 @@ class _MyMembershipScreenState extends State<MyMembershipScreen> {
         ),
       ),
     );
+  }
+
+  bool _openingCardPayment = false;
+
+  Future<void> _resumeCardPayment(MyMembership membership) async {
+    if (_openingCardPayment) return;
+    setState(() => _openingCardPayment = true);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CardPaymentScreen(
+          membershipId: membership.membershipId,
+          centerApiService: widget.centerApiService,
+          stripeClient: widget.stripeClient,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _openingCardPayment = false;
+    _retry();
   }
 
   @override
@@ -155,6 +178,17 @@ class _MyMembershipScreenState extends State<MyMembershipScreen> {
                 else
                   _UnavailableAccessCard(membership: membership),
                 _BillingTermsCard(membership: membership),
+                if (membership.isPending &&
+                    membership.paymentMethod == 'Card' &&
+                    (membership.paymentStatus == 'PendingCard' ||
+                        membership.paymentStatus == 'Failed'))
+                  IronBookMobileButton.primary(
+                    onPressed: _openingCardPayment
+                        ? null
+                        : () => _resumeCardPayment(membership),
+                    label: 'Continue Card Payment',
+                    icon: Icons.credit_card,
+                  ),
                 IronBookMobileButton.primary(
                   onPressed: () => _openMembershipOptions(membership),
                   label: 'Manage Plan',
@@ -487,7 +521,9 @@ class _UnavailableAccessCard extends StatelessWidget {
           Expanded(
             child: Text(
               membership.isPending
-                  ? 'This membership is pending reception payment. QR access will appear after it becomes active.'
+                  ? membership.paymentMethod == 'Card'
+                        ? 'Card payment has not been verified. QR access will appear after the membership becomes active.'
+                        : 'This membership is pending reception payment. QR access will appear after it becomes active.'
                   : 'This membership cannot currently grant center access.',
               style: const TextStyle(
                 color: IronBookMobileColors.slate600,

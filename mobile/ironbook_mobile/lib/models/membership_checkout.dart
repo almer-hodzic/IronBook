@@ -22,6 +22,7 @@ class MembershipCheckoutResult {
     required this.membershipStatus,
     required this.startDate,
     required this.endDate,
+    this.cardPayment,
   });
 
   final int membershipId;
@@ -36,6 +37,12 @@ class MembershipCheckoutResult {
   final String membershipStatus;
   final DateTime startDate;
   final DateTime endDate;
+  final CardPaymentDetails? cardPayment;
+
+  bool get isCardCompleted =>
+      paymentMethod == 'Card' &&
+      paymentStatus == 'Completed' &&
+      membershipStatus == 'Active';
 
   factory MembershipCheckoutResult.fromJson(Map<String, dynamic> json) {
     return MembershipCheckoutResult(
@@ -51,6 +58,9 @@ class MembershipCheckoutResult {
       membershipStatus: _readString(json, 'membershipStatus'),
       startDate: _readDate(json, 'startDate'),
       endDate: _readDate(json, 'endDate'),
+      cardPayment: json['cardPayment'] == null
+          ? null
+          : CardPaymentDetails.fromJson(json['cardPayment']),
     );
   }
 
@@ -84,5 +94,34 @@ class MembershipCheckoutResult {
   static DateTime _readDate(Map<String, dynamic> json, String key) {
     final value = _readString(json, key);
     return DateTime.parse(value);
+  }
+}
+
+class CardPaymentDetails {
+  const CardPaymentDetails({
+    required this.paymentIntentId,
+    required this.clientSecret,
+    required this.currency,
+    required this.status,
+  });
+
+  final String paymentIntentId;
+  final String clientSecret;
+  final String currency;
+  final String status;
+
+  factory CardPaymentDetails.fromJson(Object? value) {
+    if (value is! Map<String, dynamic> ||
+        ['paymentIntentId', 'clientSecret', 'currency', 'status'].any(
+          (key) => value[key] is! String || (value[key] as String).isEmpty,
+        )) {
+      throw const FormatException('Invalid Card payment details.');
+    }
+    return CardPaymentDetails(
+      paymentIntentId: value['paymentIntentId'],
+      clientSecret: value['clientSecret'],
+      currency: value['currency'],
+      status: value['status'],
+    );
   }
 }

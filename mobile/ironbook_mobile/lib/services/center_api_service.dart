@@ -25,10 +25,11 @@ import '../models/training_request.dart';
 import '../models/training_preferences.dart';
 
 class CenterApiException implements Exception {
-  const CenterApiException(this.message, {this.statusCode});
+  const CenterApiException(this.message, {this.statusCode, this.checkout});
 
   final String message;
   final int? statusCode;
+  final MembershipCheckoutResult? checkout;
 
   @override
   String toString() => message;
@@ -775,14 +776,69 @@ class CenterApiService {
       }
     }
 
-    if (response.statusCode == 400 || response.statusCode == 409) {
+    if (paymentMethod == MembershipCheckoutPaymentMethod.reception) {
       throw CenterApiException(
-        _readProblemMessage(response.body, 'Membership checkout was rejected.'),
+        response.statusCode == 400 || response.statusCode == 409
+            ? _readProblemMessage(
+                response.body,
+                'Membership checkout was rejected.',
+              )
+            : 'Membership checkout could not be completed.',
+        statusCode: response.statusCode,
       );
     }
-
-    throw const CenterApiException(
+    throw _cardPaymentError(
+      response,
       'Membership checkout could not be completed.',
+    );
+  }
+
+  Future<MembershipCheckoutResult> resumeCardPayment(int membershipId) =>
+      _cardPaymentRequest('/api/memberships/$membershipId/card-payment');
+
+  Future<MembershipCheckoutResult> completeCardPayment(int membershipId) =>
+      _cardPaymentRequest('/api/memberships/$membershipId/complete-card');
+
+  Future<MembershipCheckoutResult> _cardPaymentRequest(String path) async {
+    final response = await _post(path, null, authenticated: true);
+    if (response.statusCode == 200 || response.statusCode == 202) {
+      try {
+        return MembershipCheckoutResult.fromJson(
+          _readObject(_decodeJson(response.body)),
+        );
+      } on FormatException {
+        throw const CenterApiException(
+          'API returned invalid Card payment data.',
+        );
+      }
+    }
+    throw _cardPaymentError(
+      response,
+      'Card payment could not be verified. Please try again.',
+    );
+  }
+
+  CenterApiException _cardPaymentError(
+    http.Response response,
+    String fallback,
+  ) {
+    MembershipCheckoutResult? checkout;
+    var message = _readProblemMessage(response.body, fallback);
+    try {
+      final json = _readObject(_decodeJson(response.body));
+      if (json['message'] is String) message = json['message'] as String;
+      if (json['checkout'] is Map<String, dynamic>) {
+        checkout = MembershipCheckoutResult.fromJson(json['checkout']);
+      }
+    } on FormatException {
+      // A malformed error must not discard the HTTP status or expose provider data.
+    } on CenterApiException {
+      // Retain the existing safe fallback.
+    }
+    return CenterApiException(
+      message,
+      statusCode: response.statusCode,
+      checkout: checkout,
     );
   }
 
@@ -880,7 +936,7 @@ class CenterApiService {
 
   Future<http.Response> _post(
     String path,
-    Map<String, Object?> body, {
+    Map<String, Object?>? body, {
     bool authenticated = false,
   }) async {
     final baseUrl = _apiBaseUrl.trim();
@@ -894,8 +950,10 @@ class CenterApiService {
       final response = await (authenticated ? _authenticatedClient : _client)
           .post(
             uri,
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
+            headers: body == null
+                ? null
+                : const {'Content-Type': 'application/json'},
+            body: body == null ? null : jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
       return _checkAuthentication(response, authenticated);

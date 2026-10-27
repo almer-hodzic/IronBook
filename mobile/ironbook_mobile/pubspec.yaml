@@ -38,6 +38,7 @@ dependencies:
   ironbook_auth:
     path: ../../packages/ironbook_auth
   qr_flutter: ^4.1.0
+  flutter_stripe: ^14.2.0
 
 dev_dependencies:
   flutter_test:
