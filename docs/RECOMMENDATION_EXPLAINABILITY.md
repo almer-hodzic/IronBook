@@ -70,6 +70,22 @@ The read path tolerates legacy partial data: an unrecognized/empty goal contribu
 
 ## Determinism, verification and limitations
 
+### Scheduling compatibility audit (Quality Part 2)
+
+No scheduling hard filter or availability score is added. The existing seven-day availability response is a display/query window, not a booking limit: `GetAvailabilityAsync` accepts an arbitrary `startDate`, and `CreateRequestAsync` accepts any future supported slot after Center/Trainer validation and conflict checks. The recommendation route itself has no requested date. A Trainer with no free slots in the default window can still be booked in a later window. Removing that Trainer from date-free discovery would impose a new seven-day recommendation eligibility policy, so the conditional stop in this task applies. Choosing such a cutoff requires a separate explicit product decision; production recommendations remain unchanged.
+
+Current scheduling behavior, taken from `MemberTrainingRequestService` and `TrainingSchedule`:
+
+- There is no persisted per-Trainer/per-Center availability calendar. The current implementation uses five fixed UTC starts every day: 07:30, 09:00, 12:00, 17:00 and 18:00. New personal requests last 60 minutes. There are no weekday, leave or separate inactive-availability settings.
+- Availability returns seven calendar dates starting at `startDate`, or UTC today when omitted. Starts at or before the current UTC time are unavailable. No long-term availability prediction is made.
+- A Trainer must be active and have an active assignment to the selected active Center. An assignment only at another Center does not enable booking here.
+- Pending/Approved personal requests block time; Rejected/Cancelled do not. Active/Full Group Trainings block; Inactive does not. Conflicts are Trainer-wide across Centers and use `[start,end)` overlap, allowing adjacent intervals.
+- Booking continues to use the existing SQL-backed conflict checks and transaction-owned scheduling lock. This audit adds no read locks, mutation changes, replacement slot generator or second availability algorithm.
+
+The disposable SQL regression fills every free slot in a seven-day response using Pending requests, verifies the window has no available slots, verifies Trainer/Group recommendation ordering, scores and reasons remain unchanged, then successfully retrieves a later window and creates a real authenticated request there. Its new slot is subsequently reported as Booked. This demonstrates why an empty seven-day projection alone cannot establish that the Trainer is unbookable. No data in `190027` is used or changed.
+
+Availability remains neither a cosine weight nor a reason. Existing Trainer/category/popularity ranking and reasons, missing-preference fallback, and the complete Group recommendation query remain unchanged.
+
 For unchanged inputs and the same eligible evidence/candidate sets, ranking, scores and reason order are deterministic. The UTC clock still advances: a Group recommendation disappears at its start, while Trainer category evidence expires at the session end, even if database rows do not change.
 
 Existing recommendation identity and explanation tests retain their ranking/score assertions on valid current offerings. Their popularity fixture uses separate attendees so Member-specific enrollment exclusions do not mask those regression checks. Additional SQL cases cover Active/Full future/in-progress evidence, ended/inactive/other-Center evidence, binary duplicate categories, score/reason changes from cleaned evidence, per-Member enrollment isolation, older Enrolled rows, no-preference exclusion, empty results and fallback ties. Tests also retain additive/unpaged JSON shape, determinism, partial/unusable preferences, authorization and Center isolation coverage. They reuse the existing disposable database fixture through `IRONBOOK_TEST_SQL_CONNECTION`; no business data or evaluation dataset is added to `190027`.
