@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Security.Cryptography;
 using IronBook.Api.Notifications;
 using IronBook.Infrastructure.Auth;
@@ -61,6 +62,11 @@ public class RecommendationIdentityTests
         Assert.Equal(1 / Math.Sqrt(2), other.GroupTrainings[0].Similarity!.Value, 10);
         Assert.Equal(1 / Math.Sqrt(2), other.GroupTrainings[1].Similarity!.Value, 10);
         Assert.Equal(0d, other.GroupTrainings[2].Similarity!.Value, 10);
+        Assert.Equal(new[] { "Matches your recovery preference.", "Matches your performance preference.",
+            "2 approved coaching requests in this center." }, other.Trainers[0].Reasons);
+        Assert.Equal(new[] { "1 approved coaching request in this center." }, other.Trainers[1].Reasons);
+        Assert.Equal(new[] { "Matches your recovery preference.", "3 of 4 places enrolled." }, other.GroupTrainings[0].Reasons);
+        Assert.Equal(new[] { "Matches your performance preference." }, other.GroupTrainings[1].Reasons);
     }
 
     [Fact]
@@ -134,6 +140,12 @@ public class RecommendationIdentityTests
         Assert.Equal(new[] { 0.75, 0.5, 0.25, 0 }, result.GroupTrainings.Select(group => group.FillRatio));
         Assert.Equal(new[] { 3, 2, 1, 0 }, result.GroupTrainings.Select(group => group.EnrollmentCount));
         Assert.All(result.GroupTrainings, group => { Assert.Null(group.Similarity); Assert.Equal(4, group.Capacity); });
+        Assert.Equal(new[] { "2 approved coaching requests in this center." }, result.Trainers[0].Reasons);
+        Assert.Equal(new[] { "1 approved coaching request in this center." }, result.Trainers[1].Reasons);
+        Assert.Equal(new[] { "3 of 4 places enrolled." }, result.GroupTrainings[0].Reasons);
+        Assert.Equal(new[] { "2 of 4 places enrolled." }, result.GroupTrainings[1].Reasons);
+        Assert.Equal(new[] { "1 of 4 places enrolled." }, result.GroupTrainings[2].Reasons);
+        Assert.Empty(result.GroupTrainings[3].Reasons);
     }
 
     [Fact]
@@ -142,6 +154,219 @@ public class RecommendationIdentityTests
         var parameters = Assert.Single(typeof(MemberRecommendationsService).GetConstructors()).GetParameters();
         Assert.Contains(parameters, parameter => parameter.ParameterType == typeof(ICurrentMemberService));
         Assert.DoesNotContain(parameters, parameter => parameter.ParameterType.Name == "IDevelopmentMemberResolver");
+    }
+
+    [Fact]
+    public async Task Explainability_is_additive_unpaged_and_identical_on_repeated_reads()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var first = await client.GetStringAsync(Route(fixture.CenterId));
+        var repeated = await client.GetStringAsync(Route(fixture.CenterId));
+        Assert.Equal(first, repeated);
+        using var json = JsonDocument.Parse(first);
+        void Fields(JsonElement element, params string[] expected) =>
+            Assert.Equal(expected.Order(), element.EnumerateObject().Select(property => property.Name).Order());
+        Fields(json.RootElement, "centerId", "centerName", "isPersonalized", "trainers", "groupTrainings");
+        var trainers = json.RootElement.GetProperty("trainers");
+        var groups = json.RootElement.GetProperty("groupTrainings");
+        Assert.Equal(JsonValueKind.Array, trainers.ValueKind);
+        Assert.Equal(JsonValueKind.Array, groups.ValueKind);
+        Assert.Equal(2, trainers.GetArrayLength());
+        Assert.Equal(4, groups.GetArrayLength());
+        foreach (var trainer in trainers.EnumerateArray())
+            Fields(trainer, "id", "name", "categories", "similarity", "approvedCoachingRequestCount", "reasons");
+        foreach (var group in groups.EnumerateArray())
+            Fields(group, "id", "name", "trainerName", "category", "startsAt", "capacity", "enrollmentCount", "fillRatio", "similarity", "reasons");
+        AssertStrengthPreferences((await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!, fixture);
+    }
+
+    [Theory]
+    [InlineData("Build Strength", "strength")]
+    [InlineData("Recovery", "recovery")]
+    public async Task Goal_only_preferences_keep_their_original_single_feature_score(string goal, string category)
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            var preference = await db.TrainingPreferences.Include(row => row.Interests)
+                .SingleAsync(row => row.MemberProfileId == fixture.MemberId);
+            preference.PrimaryGoal = goal;
+            preference.Interests.Clear();
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var result = (await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!;
+        Assert.True(result.IsPersonalized);
+        var trainerId = category == "strength" ? fixture.StrengthTrainerId : fixture.RecoveryTrainerId;
+        var groupId = category == "strength" ? fixture.StrengthGroupId : fixture.RecoveryGroupId;
+        Assert.Equal(trainerId, result.Trainers[0].Id);
+        Assert.Equal(1 / Math.Sqrt(2), result.Trainers[0].Similarity!.Value, 10);
+        Assert.Equal(0d, result.Trainers[1].Similarity!.Value, 10);
+        Assert.Equal(groupId, result.GroupTrainings[0].Id);
+        Assert.Equal(1d, result.GroupTrainings[0].Similarity!.Value, 10);
+        Assert.Equal($"Matches your {category} preference.", result.Trainers[0].Reasons[0]);
+        Assert.Equal($"Matches your {category} preference.", result.GroupTrainings[0].Reasons[0]);
+        Assert.All(result.Trainers[1].Reasons, reason => Assert.DoesNotContain("Matches your", reason));
+        Assert.All(result.GroupTrainings.Skip(1).SelectMany(group => group.Reasons), reason => Assert.DoesNotContain("Matches your", reason));
+    }
+
+    [Fact]
+    public async Task Legacy_missing_goal_uses_only_recognized_interests_without_a_goal_claim()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            var preference = await db.TrainingPreferences.Include(row => row.Interests)
+                .SingleAsync(row => row.MemberProfileId == fixture.MemberId);
+            preference.PrimaryGoal = string.Empty;
+            preference.Interests.Clear();
+            preference.Interests.Add(new TrainingPreferenceInterest { Category = "recovery" });
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var result = (await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!;
+        Assert.True(result.IsPersonalized);
+        Assert.Equal(fixture.RecoveryTrainerId, result.Trainers[0].Id);
+        Assert.Equal(1 / Math.Sqrt(2), result.Trainers[0].Similarity!.Value, 10);
+        Assert.Equal(new[] { "Matches your recovery preference.", "2 approved coaching requests in this center." }, result.Trainers[0].Reasons);
+        Assert.All(result.Trainers.SelectMany(row => row.Reasons), reason => Assert.DoesNotContain("goal", reason));
+    }
+
+    [Fact]
+    public async Task Unusable_legacy_preferences_keep_fallback_without_invented_match_reasons()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            var preference = await db.TrainingPreferences.Include(row => row.Interests)
+                .SingleAsync(row => row.MemberProfileId == fixture.MemberId);
+            preference.PrimaryGoal = "Unknown goal";
+            preference.Interests.Clear();
+            preference.Interests.Add(new TrainingPreferenceInterest { Category = "unrecognized" });
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var result = (await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!;
+        Assert.False(result.IsPersonalized);
+        Assert.Equal(new[] { fixture.RecoveryTrainerId, fixture.StrengthTrainerId }, result.Trainers.Select(row => row.Id));
+        Assert.Equal(new[] { fixture.RecoveryGroupId, fixture.ConditioningGroupId, fixture.StrengthGroupId, fixture.PerformanceGroupId },
+            result.GroupTrainings.Select(row => row.Id));
+        Assert.All(result.Trainers, row => Assert.Null(row.Similarity));
+        Assert.All(result.GroupTrainings, row => Assert.Null(row.Similarity));
+        Assert.All(result.Trainers.SelectMany(row => row.Reasons).Concat(result.GroupTrainings.SelectMany(row => row.Reasons)),
+            reason => Assert.DoesNotContain("Matches your", reason));
+    }
+
+    [Fact]
+    public async Task Non_scoring_fields_and_Pending_requests_change_neither_ranking_scores_nor_reasons()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var before = await client.GetStringAsync(Route(fixture.CenterId));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            var trainer = await db.TrainerProfiles.SingleAsync(row => row.Id == fixture.StrengthTrainerId);
+            trainer.Biography = "Availability, specialization and ratings are not ranking inputs.";
+            trainer.PhoneNumber = "unused";
+            trainer.Email = "unused@example.invalid";
+            var group = await db.GroupTrainings.SingleAsync(row => row.Id == fixture.StrengthGroupId);
+            group.Difficulty = GroupTrainingDifficulty.Advanced;
+            group.DurationMinutes = 90;
+            group.Description = "Not a scoring field";
+            group.Includes = "Not a scoring field";
+            group.WhoFor = "Not a scoring field";
+            for (var index = 0; index < 10; index++)
+                db.TrainingRequests.Add(new TrainingRequest { TrainerProfileId = trainer.Id, MemberProfileId = fixture.MemberId,
+                    CenterId = fixture.CenterId, Status = TrainingRequestStatus.Pending,
+                    RequestedStartAt = group.StartsAt.AddHours(index), DurationMinutes = 60 });
+            await db.SaveChangesAsync();
+        }
+        var after = await client.GetStringAsync(Route(fixture.CenterId));
+        Assert.Equal(before, after);
+        AssertStrengthPreferences((await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!, fixture);
+    }
+
+    [Fact]
+    public async Task Missing_category_evidence_and_zero_popularity_have_empty_reasons_in_either_mode()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        int[] bareIds;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            TrainerProfile[] bare = [new() { FirstName = "No content", LastName = "One", Email = "bare-one@example.invalid" },
+                new() { FirstName = "No content", LastName = "Two", Email = "bare-two@example.invalid" }];
+            foreach (var trainer in bare)
+                trainer.TrainerCenterAssignments.Add(new TrainerCenterAssignment { CenterId = fixture.CenterId });
+            db.TrainerProfiles.AddRange(bare);
+            await db.SaveChangesAsync();
+            bareIds = bare.Select(row => row.Id).Order().ToArray();
+        }
+        using var client = factory.CreateClient();
+        foreach (var username in new[] { "member", "cold-member" })
+        {
+            await Authenticate(client, username);
+            var result = (await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!;
+            Assert.Equal(bareIds, result.Trainers.TakeLast(2).Select(row => row.Id));
+            Assert.All(result.Trainers.TakeLast(2), row =>
+            {
+                Assert.Null(row.Similarity);
+                Assert.Empty(row.Categories);
+                Assert.Equal(0, row.ApprovedCoachingRequestCount);
+                Assert.Empty(row.Reasons);
+            });
+            var performance = result.GroupTrainings.Single(row => row.Id == fixture.PerformanceGroupId);
+            Assert.Equal(0, performance.EnrollmentCount);
+            Assert.Equal(0d, performance.FillRatio);
+            Assert.Empty(performance.Reasons);
+        }
+    }
+
+    [Fact]
+    public async Task Fat_loss_reason_is_readable_and_comes_from_the_same_actual_category_vector()
+    {
+        using var factory = new RecommendationFactory();
+        var fixture = await Prepare(factory);
+        int groupId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IronBookDbContext>();
+            var preference = await db.TrainingPreferences.Include(row => row.Interests)
+                .SingleAsync(row => row.MemberProfileId == fixture.MemberId);
+            preference.PrimaryGoal = "Lose Fat";
+            preference.Interests.Clear();
+            var group = new GroupTraining { Name = "Fat loss session", CenterId = fixture.CenterId,
+                TrainerProfileId = fixture.StrengthTrainerId, Category = GroupTrainingCategory.FatLoss,
+                StartsAt = DateTime.UtcNow.AddDays(3), DurationMinutes = 60, Capacity = 4, Status = GroupTrainingStatus.Active };
+            db.GroupTrainings.Add(group);
+            await db.SaveChangesAsync();
+            groupId = group.Id;
+        }
+        using var client = factory.CreateClient();
+        await Authenticate(client, "member");
+        var result = (await client.GetFromJsonAsync<MemberRecommendationsDto>(Route(fixture.CenterId)))!;
+        Assert.Equal(groupId, result.GroupTrainings[0].Id);
+        Assert.Equal(1d, result.GroupTrainings[0].Similarity!.Value, 10);
+        Assert.Equal(new[] { "Matches your fat loss preference." }, result.GroupTrainings[0].Reasons);
+        Assert.Equal(fixture.StrengthTrainerId, result.Trainers[0].Id);
+        Assert.Equal(1 / Math.Sqrt(3), result.Trainers[0].Similarity!.Value, 10);
+        Assert.Equal(new[] { "Matches your fat loss preference.", "1 approved coaching request in this center." }, result.Trainers[0].Reasons);
     }
 
     private static void AssertStrengthPreferences(MemberRecommendationsDto result, Fixture fixture)
@@ -158,6 +383,13 @@ public class RecommendationIdentityTests
         Assert.Equal(1 / Math.Sqrt(2), result.GroupTrainings[1].Similarity!.Value, 10);
         Assert.Equal(0d, result.GroupTrainings[2].Similarity!.Value, 10);
         Assert.Equal("conditioning", result.GroupTrainings[0].Category);
+        Assert.Equal(new[] { "Matches your strength preference.", "Matches your conditioning preference.",
+            "1 approved coaching request in this center." }, result.Trainers[0].Reasons);
+        Assert.Equal(new[] { "2 approved coaching requests in this center." }, result.Trainers[1].Reasons);
+        Assert.Equal(new[] { "Matches your conditioning preference.", "2 of 4 places enrolled." }, result.GroupTrainings[0].Reasons);
+        Assert.Equal(new[] { "Matches your strength preference.", "1 of 4 places enrolled." }, result.GroupTrainings[1].Reasons);
+        Assert.Equal(new[] { "3 of 4 places enrolled." }, result.GroupTrainings[2].Reasons);
+        Assert.Empty(result.GroupTrainings[3].Reasons);
     }
 
     private static string Route(int centerId) => $"/api/member/centers/{centerId}/recommendations";

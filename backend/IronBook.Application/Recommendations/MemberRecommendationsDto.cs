@@ -12,7 +12,10 @@ public sealed record TrainerRecommendationDto(
     string Name,
     IReadOnlyList<string> Categories,
     double? Similarity,
-    int ApprovedCoachingRequestCount);
+    int ApprovedCoachingRequestCount)
+{
+    public IReadOnlyList<string> Reasons { get; init; } = [];
+}
 
 public sealed record GroupTrainingRecommendationDto(
     int Id,
@@ -23,4 +26,7 @@ public sealed record GroupTrainingRecommendationDto(
     int Capacity,
     int EnrollmentCount,
     double FillRatio,
-    double? Similarity);
+    double? Similarity)
+{
+    public IReadOnlyList<string> Reasons { get; init; } = [];
+}

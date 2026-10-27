@@ -55,14 +55,21 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
         var rankedTrainers = trainers.Select(trainer =>
         {
             var categories = trainer.Categories.Select(RecommendationFeatures.CategoryName).ToList();
+            var contentVector = RecommendationFeatures.ForCategories(categories);
+            var reasons = MatchReasons(isPersonalized ? memberVector : null, contentVector);
+            if (trainer.ApprovedCount > 0)
+            {
+                var noun = trainer.ApprovedCount == 1 ? "request" : "requests";
+                reasons.Add(FormattableString.Invariant($"{trainer.ApprovedCount} approved coaching {noun} in this center."));
+            }
             return new TrainerRecommendationDto(
                 trainer.Id,
                 trainer.Name,
                 RecommendationFeatures.Categories.Where(categories.Contains).ToList(),
                 isPersonalized
-                    ? RecommendationFeatures.CosineSimilarity(memberVector!, RecommendationFeatures.ForCategories(categories))
+                    ? RecommendationFeatures.CosineSimilarity(memberVector!, contentVector)
                     : null,
-                trainer.ApprovedCount);
+                trainer.ApprovedCount) { Reasons = reasons };
         })
             .OrderByDescending(trainer => trainer.Similarity)
             .ThenByDescending(trainer => trainer.ApprovedCoachingRequestCount)
@@ -93,12 +100,16 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
         var rankedTrainings = trainings.Select(training =>
         {
             var category = RecommendationFeatures.CategoryName(training.Category);
+            var contentVector = RecommendationFeatures.ForCategories([category]);
+            var reasons = MatchReasons(isPersonalized ? memberVector : null, contentVector);
+            if (training.EnrollmentCount > 0)
+                reasons.Add(FormattableString.Invariant($"{training.EnrollmentCount} of {training.Capacity} places enrolled."));
             return new GroupTrainingRecommendationDto(
                 training.Id, training.Name, training.TrainerName, category, training.StartsAt,
                 training.Capacity, training.EnrollmentCount, (double)training.EnrollmentCount / training.Capacity,
                 isPersonalized
-                    ? RecommendationFeatures.CosineSimilarity(memberVector!, RecommendationFeatures.ForCategories([category]))
-                    : null);
+                    ? RecommendationFeatures.CosineSimilarity(memberVector!, contentVector)
+                    : null) { Reasons = reasons };
         })
             .OrderByDescending(training => training.Similarity)
             .ThenByDescending(training => training.FillRatio)
@@ -107,5 +118,20 @@ public sealed class MemberRecommendationsService : IMemberRecommendationsService
             .ToList();
 
         return new MemberRecommendationsDto(center.Id, center.Name, isPersonalized, rankedTrainers, rankedTrainings);
+    }
+
+    private static List<string> MatchReasons(IReadOnlyList<double>? memberVector, IReadOnlyList<double> contentVector)
+    {
+        var reasons = new List<string>();
+        if (memberVector is null) return reasons;
+
+        // Match explanations use the exact binary features used by cosine scoring.
+        for (var index = 0; index < RecommendationFeatures.Categories.Count; index++)
+        {
+            if (memberVector[index] == 0 || contentVector[index] == 0) continue;
+            var label = RecommendationFeatures.Categories[index].Replace('_', ' ');
+            reasons.Add($"Matches your {label} preference.");
+        }
+        return reasons;
     }
 }
