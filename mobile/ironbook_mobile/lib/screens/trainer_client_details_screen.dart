@@ -23,6 +23,7 @@ class TrainerClientDetailsScreen extends StatefulWidget {
 
 class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen> {
   late Future<TrainerClientDetails> _detailsFuture;
+  bool _openingReport = false;
 
   @override
   void initState() {
@@ -38,6 +39,25 @@ class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen>
         widget.requestId,
       );
     });
+  }
+
+  Future<void> _openTrainingReport(int requestId) async {
+    if (!mounted || _openingReport) return;
+    _openingReport = true;
+    final service = widget.centerApiService;
+    try {
+      final refreshed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => AddTrainingReportScreen(
+            centerApiService: service,
+            trainingRequestId: requestId,
+          ),
+        ),
+      );
+      if (mounted && refreshed == true) _retry();
+    } finally {
+      _openingReport = false;
+    }
   }
 
   @override
@@ -74,7 +94,7 @@ class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen>
 
             return _ClientDetailsSection(
               details: details,
-              onTrainingReportAdded: _retry,
+              onAddTrainingReport: () => _openTrainingReport(details.id),
             );
           },
         ),
@@ -86,11 +106,11 @@ class _TrainerClientDetailsScreenState extends State<TrainerClientDetailsScreen>
 class _ClientDetailsSection extends StatelessWidget {
   const _ClientDetailsSection({
     required this.details,
-    required this.onTrainingReportAdded,
+    required this.onAddTrainingReport,
   });
 
   final TrainerClientDetails details;
-  final VoidCallback onTrainingReportAdded;
+  final VoidCallback onAddTrainingReport;
 
   @override
   Widget build(BuildContext context) {
@@ -184,23 +204,7 @@ class _ClientDetailsSection extends StatelessWidget {
         const SizedBox(height: 10),
         if (details.status == 'Approved' && !details.hasTrainingReport)
           IronBookMobileButton.primary(
-            onPressed: () async {
-              final refreshed = await Navigator.of(context).push<bool>(
-                MaterialPageRoute<bool>(
-                  builder: (context) => AddTrainingReportScreen(
-                    centerApiService: context
-                        .findAncestorStateOfType<_TrainerClientDetailsScreenState>()!
-                        .widget
-                        .centerApiService,
-                    trainingRequestId: details.id,
-                  ),
-                ),
-              );
-
-              if (refreshed == true) {
-                onTrainingReportAdded();
-              }
-            },
+            onPressed: onAddTrainingReport,
             label: 'Add Training Report',
             icon: Icons.assignment_add,
           ),
