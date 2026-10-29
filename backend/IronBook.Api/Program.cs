@@ -92,6 +92,7 @@ builder.Services.AddSingleton<IMembershipAccessTokenService>(_ =>
 builder.Services.AddScoped<IMembershipCheckoutService, MembershipCheckoutService>();
 builder.Services.AddScoped<IMyMembershipService, MyMembershipService>();
 builder.Services.AddScoped<ICheckInValidationService, CheckInValidationService>();
+builder.Services.AddScoped<IAdminCheckInRegisterService, AdminCheckInRegisterService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 

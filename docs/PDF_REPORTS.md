@@ -100,3 +100,39 @@ flutter build windows --debug --dart-define=API_BASE_URL=http://localhost:5100
 Part B validation: dependency restore passed; analysis reported zero issues; all 176 desktop tests passed (151 baseline plus 25 focused PDF tests); the focused rerun passed all 25 tests. The Windows debug build succeeded. Native dialogs/viewer launching are mocked in automated tests, so these results do not claim an interactive save/open test against a live backend. Standard Flutter plugin builds require Windows link support; this local check used ignored build-directory junctions without changing Windows settings.
 
 The second PDF, charts, CSV/Excel export, email delivery and scheduling remain deferred. Payment/refund lifecycle, authentication architecture, list pagination, backend, database schema and seed data are unchanged.
+
+## Attendance / Check-In Register - backend Part A
+
+`GET /api/admin/check-ins/pdf` downloads the complete filtered register of actual `CheckIn` events. These records mean center access validated against a Membership, not Group Training attendance or coaching attendance. The existing `POST /api/check-ins/validate` workflow/contract is unchanged. Authorization uses the existing `AppRoles.Admin`: anonymous 401, Member/Trainer 403, Admin download.
+
+The source model has `Id`, `CheckedInAt` (stored UTC), required `MembershipId` and required `CenterId`. Membership links to MemberProfile and MembershipPlan. These required foreign keys use restricted deletion; the report does not change relationships. Labels come from the current related records and are not historical name snapshots. Missing/blank display labels fall back to `Unknown`; long labels wrap and are bounded at 160 Unicode scalar values with `...`.
+
+Optional filters reuse the existing `AdminReportFilter` and Admin Reports validation conventions:
+
+- `centerId`: an existing Center, including inactive Centers for historical reporting. A nonexistent ID produces the existing CenterId validation error/HTTP 400.
+- `fromDate` and `toDate`: calendar dates, normally supplied as `YYYY-MM-DD`, bound as DateOnly using the existing API model-binding conventions. They apply to `CheckIn.CheckedInAt`, not Membership dates or creation dates.
+- From is inclusive UTC `00:00:00.0000000`; to is inclusive UTC `23:59:59.9999999` of that date. There is no local-time conversion. SQL datetime2 precision is retained for filtering. Open bounds are unbounded; same-day ranges include the entire UTC day. The maximum date is supported without adding a day/overflowing.
+- Reversed ranges return HTTP 400 with the existing ToDate message; invalid dates return standard API validation problems. No Member search or additional filters are introduced.
+
+Center/date predicates run in SQL before full projection/materialization. Ordering is `CheckedInAt DESC, Id DESC`; the PDF has no pagination binding, Skip/Take or row cap. Supplying list pagination parameters does not restrict the export.
+
+Columns are Check-In ID, checked-in date/time UTC (displayed to the second), Member name/profile ID, recorded Center name/ID, Membership ID and Membership Plan. Summary values are matching event count, distinct MemberProfile count and distinct recorded Center count, calculated from exactly the exported rows. The title, generated UTC timestamp, applied filters, repeating table headers and Page X of Y footers use a simple A4 landscape layout.
+
+Recorded events remain visible when a Membership later expires/cancels or a related payment is RefundPending/Refunded. The query does not filter current Membership, Payment, MemberProfile, plan or Center active/status values. Current Membership status is omitted because it is not a recorded status at check-in time. No refund/revenue metrics are inferred. QR tokens/signatures, JWT/session values, Member email and payment/provider fields are neither projected nor exported.
+
+Responses are in-memory `application/pdf` attachments named `ironbook-check-in-register-YYYY-MM-DD.pdf` using the UTC generation date. A valid empty filter returns HTTP 200 with a PDF stating **Zero matching check-ins**, and all summary counts zero. Production does not persist report files. The existing QuestPDF 2026.9.1 package, Community license configuration, bundled Lato font and Payment Register layout conventions are reused; Payment Register code/documentation is otherwise unchanged.
+
+Focused tests use only a generated `IronBookCheckInRegisterTests_<guid>` SQL Server database, replacing the configured catalog before opening connections and deleting it afterward. They exercise real HTTP authorization/queries/PDF rendering, date boundaries, full export/order/counts, historical states, excluded fields, empty/multipage reports, safe labels and existing QR check-in validation. They never connect to or write to `190027`, call Stripe, or change database schema/migrations. Run with the existing private `IRONBOOK_TEST_SQL_CONNECTION` available:
+
+```powershell
+dotnet build
+dotnet test IronBook.sln --no-build
+dotnet test IronBook.sln --no-build --filter FullyQualifiedName~CheckInRegisterPdfTests
+git diff --check
+```
+
+For visual QA only, `IRONBOOK_CHECKIN_PDF_QA_DIRECTORY` writes small, empty and multipage test samples to the chosen temporary directory. Normal tests/production do not write PDFs to disk. Full export uses memory proportionate to the filtered dataset, as with Payment Register; it is not an immutable archived attendance snapshot. Fonts outside the bundled font coverage may require future support.
+
+Validation: all 589 backend tests passed (563 baseline plus 26 focused SQL PDF tests), with zero failures/skips. The focused PDF run passed all 26 tests; the existing Admin-controller metadata assertion was updated only to include the new Admin-only controller and verified separately. Build completed with zero warnings/errors. Small, empty and nine-page/145-event samples were rendered and visually inspected with no clipping, overflow or broken columns. Disposable test databases were removed; `190027` was not used.
+
+Attendance desktop integration is deferred to Part B. Desktop/mobile, payment/refund lifecycle, Check-In creation/validation, QR signing, authentication architecture, database schema/migrations and seed data are unchanged. No charts, CSV/Excel, scheduling or email delivery are added.
