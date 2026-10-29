@@ -14,26 +14,8 @@ public sealed class AdminPaymentService(IronBookDbContext dbContext) : IAdminPay
     {
         pagination ??= new PaginationRequest();
         pagination.Validate();
-        var errors = new Dictionary<string, string[]>();
-        var status = ParseFilter<PaymentStatus>(filter.Status, "Status", errors);
-        var method = ParseFilter<PaymentMethod>(filter.PaymentMethod, "PaymentMethod", errors);
-        if (filter.CenterId.HasValue &&
-            !await dbContext.Centers.AnyAsync(center => center.Id == filter.CenterId, cancellationToken))
-            errors["CenterId"] = ["The selected center does not exist."];
+        var (query, errors) = await AdminPaymentQuery.FilterAsync(dbContext, filter, cancellationToken);
         if (errors.Count > 0) return new(new([], pagination.PageNumber, pagination.PageSize, 0), errors);
-
-        var query = dbContext.Payments.AsNoTracking().AsQueryable();
-        if (status.HasValue) query = query.Where(payment => payment.PaymentStatus == status);
-        if (method.HasValue) query = query.Where(payment => payment.PaymentMethod == method);
-        if (filter.CenterId.HasValue) query = query.Where(payment => payment.Membership.CenterId == filter.CenterId);
-        var search = filter.Search?.Trim();
-        if (!string.IsNullOrEmpty(search))
-        {
-            var term = search.ToUpperInvariant();
-            query = query.Where(payment =>
-                (payment.Membership.MemberProfile.FirstName + " " + payment.Membership.MemberProfile.LastName).ToUpper().Contains(term) ||
-                payment.Membership.MemberProfile.Email.ToUpper().Contains(term));
-        }
         var payments = await query.OrderByDescending(payment => payment.CreatedAt).ThenByDescending(payment => payment.Id)
             .ToPagedResultAsync(pagination, Project, cancellationToken);
         return new(payments, errors);
@@ -77,16 +59,7 @@ public sealed class AdminPaymentService(IronBookDbContext dbContext) : IAdminPay
         return AdminPaymentConfirmationResult.Success(updated);
     }
 
-    private static T? ParseFilter<T>(string? value, string field, Dictionary<string, string[]> errors) where T : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        var name = Enum.GetNames<T>().FirstOrDefault(name => string.Equals(name, value.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (name is not null) return Enum.Parse<T>(name);
-        errors[field] = [$"Allowed values: {string.Join(", ", Enum.GetNames<T>())}."];
-        return null;
-    }
-
-    private static IQueryable<AdminPaymentDto> Project(IQueryable<Payment> query) => query.Select(payment => new AdminPaymentDto(
+    internal static IQueryable<AdminPaymentDto> Project(IQueryable<Payment> query) => query.Select(payment => new AdminPaymentDto(
         payment.Id, payment.Membership.MemberProfileId,
         payment.Membership.MemberProfile.FirstName + " " + payment.Membership.MemberProfile.LastName,
         payment.Membership.MemberProfile.Email,

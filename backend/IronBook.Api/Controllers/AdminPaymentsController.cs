@@ -9,7 +9,8 @@ namespace IronBook.Api.Controllers;
 [ApiController]
 [Authorize(Roles = AppRoles.Admin)]
 [Route("api/admin/payments")]
-public sealed class AdminPaymentsController(IAdminPaymentService paymentService, IAdminPaymentRefundService refunds) : ControllerBase
+public sealed class AdminPaymentsController(IAdminPaymentService paymentService, IAdminPaymentRefundService refunds,
+    IAdminPaymentRegisterService register) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<PagedResult<AdminPaymentDto>>> Get(
@@ -30,6 +31,17 @@ public sealed class AdminPaymentsController(IAdminPaymentService paymentService,
         if (result.NotFound) return NotFound(new { message = result.Error });
         if (result.Payment is not null) return Ok(result.Payment);
         return Conflict(new { message = result.Error });
+    }
+
+    [HttpGet("pdf")]
+    public async Task<IActionResult> Pdf([FromQuery] string? search, [FromQuery] string? status,
+        [FromQuery] string? paymentMethod, [FromQuery] int? centerId, CancellationToken cancellationToken)
+    {
+        var result = await register.GenerateAsync(new(search, status, paymentMethod, centerId), cancellationToken);
+        if (result.Errors.Count == 0) return File(result.Content!, "application/pdf", result.FileName);
+        foreach (var error in result.Errors)
+            foreach (var message in error.Value) ModelState.AddModelError(error.Key, message);
+        return ValidationProblem(ModelState);
     }
 
     [HttpPost("{paymentId:int}/refund")]
