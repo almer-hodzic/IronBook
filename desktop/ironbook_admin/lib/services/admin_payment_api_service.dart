@@ -11,6 +11,7 @@ import 'bearer_http_client.dart';
 import '../app_config.dart';
 import '../models/admin_center.dart';
 import '../models/admin_payment.dart';
+import '../models/payment_register_download.dart';
 
 class AdminPaymentApiException implements Exception {
   const AdminPaymentApiException(this.message, {this.statusCode});
@@ -59,6 +60,120 @@ class AdminPaymentApiService {
     } on FormatException catch (error) {
       throw AdminPaymentApiException(error.message);
     }
+  }
+
+  Future<PaymentRegisterDownload> downloadPaymentRegister(
+    AdminPaymentFilter filter,
+  ) async {
+    if (_baseUrl.isEmpty) {
+      throw const AdminPaymentApiException(
+        'Configure API_BASE_URL to download the Payment Register.',
+      );
+    }
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('$_baseUrl/api/admin/payments/pdf').replace(
+              queryParameters: filter.query.isEmpty ? null : filter.query,
+            ),
+            headers: {'Accept': 'application/pdf'},
+          )
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode != 200) {
+        throw AdminPaymentApiException(
+          _errorMessage(
+            response,
+            'The Payment Register could not be downloaded. Please retry.',
+          ),
+          statusCode: response.statusCode,
+        );
+      }
+      final bytes = response.bodyBytes;
+      if (response.headers['content-type']
+                  ?.split(';')
+                  .first
+                  .trim()
+                  .toLowerCase() !=
+              'application/pdf' ||
+          bytes.length < 5 ||
+          ascii.decode(bytes.take(5).toList(), allowInvalid: true) != '%PDF-') {
+        throw const AdminPaymentApiException(
+          'The API did not return a valid PDF. Please retry.',
+        );
+      }
+      return PaymentRegisterDownload(
+        bytes: bytes,
+        fileName: _pdfFileName(response.headers['content-disposition']),
+      );
+    } on AuthenticationRequiredException {
+      throw const AdminPaymentApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
+    } on TimeoutException {
+      throw const AdminPaymentApiException(
+        'The Payment Register download timed out. Please retry.',
+      );
+    } on http.ClientException {
+      throw const AdminPaymentApiException(
+        'Unable to connect to the API. Please retry.',
+      );
+    } on FormatException {
+      throw const AdminPaymentApiException('Invalid API URL or PDF response.');
+    }
+  }
+
+  static String _pdfFileName(String? header) {
+    const fallback = 'ironbook-payment-register.pdf';
+    if (header == null) return fallback;
+    String? name;
+    final extended = RegExp(
+      r"(?:^|;)\s*filename\*\s*=\s*UTF-8''([^;]+)",
+      caseSensitive: false,
+    ).firstMatch(header);
+    if (extended != null) {
+      try {
+        name = Uri.decodeComponent(extended.group(1)!.trim());
+      } on FormatException {
+        /* Try the ordinary filename instead. */
+      } on ArgumentError {
+        /* Invalid percent encoding: try the ordinary filename instead. */
+      }
+    }
+    name ??= RegExp(
+      r'(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]+))',
+      caseSensitive: false,
+    ).firstMatch(header)?.groups([1, 2]).whereType<String>().firstOrNull;
+    name = name?.trim();
+    if (name == null ||
+        name.length > 180 ||
+        name.toLowerCase() == '.pdf' ||
+        !name.toLowerCase().endsWith('.pdf') ||
+        RegExp(r'[\\/:*?"<>|\x00-\x1f]').hasMatch(name)) {
+      return fallback;
+    }
+    return name;
+  }
+
+  static String _errorMessage(http.Response response, String fallback) {
+    try {
+      final problem = _object(jsonDecode(response.body));
+      final errors = problem['errors'];
+      if (errors is Map) {
+        final messages = errors.values
+            .whereType<List>()
+            .expand((values) => values)
+            .whereType<String>();
+        if (messages.isNotEmpty) return messages.first;
+      } else if (problem['message'] is String) {
+        return problem['message'] as String;
+      } else if (problem['detail'] is String) {
+        return problem['detail'] as String;
+      }
+    } on FormatException {
+      /* Keep the fallback for non-JSON errors. */
+    }
+    return fallback;
   }
 
   Future<AdminPayment> confirmReception(int id) async {
@@ -117,23 +232,7 @@ class AdminPaymentApiService {
         var message = post
             ? 'Payment could not be confirmed. Refresh and try again.'
             : 'Payments could not be loaded. Please retry.';
-        try {
-          final problem = _object(jsonDecode(response.body));
-          final errors = problem['errors'];
-          if (errors is Map) {
-            final messages = errors.values
-                .whereType<List>()
-                .expand((values) => values)
-                .whereType<String>();
-            if (messages.isNotEmpty) message = messages.first;
-          } else if (problem['message'] is String) {
-            message = problem['message'] as String;
-          } else if (problem['detail'] is String) {
-            message = problem['detail'] as String;
-          }
-        } on FormatException {
-          /* Keep the fallback for non-JSON error responses. */
-        }
+        message = _errorMessage(response, message);
         throw AdminPaymentApiException(
           message,
           statusCode: response.statusCode,

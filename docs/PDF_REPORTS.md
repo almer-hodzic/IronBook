@@ -75,4 +75,28 @@ For local visual QA only, setting `IRONBOOK_PDF_QA_DIRECTORY` on the test proces
 
 The full filtered dataset and generated PDF are held in memory; this is intended for seminar/admin data sizes, with no invented export cap. Additional fonts may be needed for writing systems outside the bundled font's coverage. The register reflects the rows read for that request and is not an immutable archived accounting snapshot.
 
-Desktop download integration is deferred to Part B. The second PDF, charts, CSV/Excel export, email delivery and scheduling are not implemented. Payment/refund lifecycle, authorization architecture, pagination behavior, database schema, seed data, Flutter and desktop UI are unchanged.
+## Desktop integration - Part B
+
+The Windows Admin Payments screen now has **Download PDF**, alongside Refresh. It calls the existing `GET /api/admin/payments/pdf` through the existing desktop `BearerHttpClient`; token retrieval and session behavior are unchanged. It forwards exactly the currently **applied** `search`, `status`, `paymentMethod` and `centerId` filters. Draft filter edits are not exported until Apply filters is used. No page number, page size or date filters are sent. The backend PDF remains the source of truth for report rows, ordering, totals and layout; the desktop does not reconstruct the report from the current list page.
+
+The response is checked for PDF content type/signature. The native Windows Save As dialog lets the Admin choose the destination and handle overwrite confirmation. The suggested filename uses server `Content-Disposition` (`filename*` UTF-8 preferred, then `filename`), with `ironbook-payment-register.pdf` as fallback. Invalid/path-bearing/non-PDF suggestions use the fallback. No developer path, automatic output directory or random filename is used.
+
+After saving, the screen shows the chosen path and an **Open PDF** action. That action opens the saved file in the system's associated PDF viewer, where the user can print using the viewer's own controls. There is no custom viewer, PDF editor or separate print pipeline. A system PDF association is required to open the file.
+
+Desktop dependencies are [file_selector 1.1.0](https://pub.dev/packages/file_selector/versions/1.1.0) for the native Save As dialog and [url_launcher 6.3.3](https://pub.dev/packages/url_launcher/versions/6.3.3) for opening a local file URI. Both are Flutter-maintained BSD-3-Clause plugins. Only required generated Windows plugin registration is added; the mobile app has no changes.
+
+Export loading prevents duplicate downloads through the network and save-dialog stages. Cancelling Save As is neutral, with no file-open attempt. Backend validation/status errors, connection failures, invalid PDF responses, write failures and viewer failures show controlled feedback. A 401 remains observable through `AdminPaymentApiException.statusCode`; no automatic login, refresh, retry or global logout is added. Export state is separate from list loading/paging and Reception confirmation. Leaving the screen does not open a late dialog or update disposed state.
+
+Focused desktop tests mock file-save/open operations; they never launch native applications. They cover filters, full-export requests without paging, current Bearer transport, filename/fallback handling, PDF bytes, save/cancel/failure feedback, duplicate prevention, disposal and page-two regression. Run from `desktop/ironbook_admin`:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test --dart-define=API_BASE_URL=http://localhost:5100
+flutter test --dart-define=API_BASE_URL=http://localhost:5100 test/payment_register_pdf_test.dart
+flutter build windows --debug --dart-define=API_BASE_URL=http://localhost:5100
+```
+
+Part B validation: dependency restore passed; analysis reported zero issues; all 176 desktop tests passed (151 baseline plus 25 focused PDF tests); the focused rerun passed all 25 tests. The Windows debug build succeeded. Native dialogs/viewer launching are mocked in automated tests, so these results do not claim an interactive save/open test against a live backend. Standard Flutter plugin builds require Windows link support; this local check used ignored build-directory junctions without changing Windows settings.
+
+The second PDF, charts, CSV/Excel export, email delivery and scheduling remain deferred. Payment/refund lifecycle, authentication architecture, list pagination, backend, database schema and seed data are unchanged.

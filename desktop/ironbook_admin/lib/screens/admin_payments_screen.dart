@@ -6,12 +6,18 @@ import 'package:flutter/material.dart';
 import '../models/admin_center.dart';
 import '../models/admin_payment.dart';
 import '../services/admin_payment_api_service.dart';
+import '../services/payment_register_file_service.dart';
 import '../widgets/admin_primitives.dart';
 import 'admin_shell.dart';
 
 class AdminPaymentsScreen extends StatefulWidget {
-  const AdminPaymentsScreen({super.key, required this.paymentApiService});
+  const AdminPaymentsScreen({
+    super.key,
+    required this.paymentApiService,
+    this.paymentRegisterFiles = const PaymentRegisterFileService(),
+  });
   final AdminPaymentApiService paymentApiService;
+  final PaymentRegisterFileService paymentRegisterFiles;
   @override
   State<AdminPaymentsScreen> createState() => _AdminPaymentsScreenState();
 }
@@ -31,6 +37,11 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
   String? _error;
   String? _actionError;
   String? _notice;
+  bool _exporting = false;
+  bool _openingPdf = false;
+  String? _exportError;
+  String? _exportNotice;
+  String? _savedPdfPath;
   bool get _busy => _loading || _confirmingId != null;
 
   @override
@@ -161,6 +172,70 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
     }
   }
 
+  Future<void> _downloadPdf() async {
+    if (_exporting || _busy) return;
+    final filters = _applied;
+    setState(() {
+      _exporting = true;
+      _exportError = null;
+      _exportNotice = null;
+      _savedPdfPath = null;
+    });
+    try {
+      final download = await widget.paymentApiService.downloadPaymentRegister(
+        filters,
+      );
+      if (!mounted) return;
+      final path = await widget.paymentRegisterFiles.save(download);
+      if (!mounted) return;
+      setState(() {
+        _savedPdfPath = path;
+        _exportNotice = path == null
+            ? 'PDF save cancelled.'
+            : 'Payment Register saved to $path';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _exportError =
+            error is AdminPaymentApiException ||
+                error is PaymentRegisterFileException
+            ? error.toString()
+            : 'The Payment Register could not be saved. Please retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openPdf() async {
+    final path = _savedPdfPath;
+    if (_openingPdf || path == null) return;
+    setState(() {
+      _openingPdf = true;
+      _exportError = null;
+    });
+    try {
+      await widget.paymentRegisterFiles.open(path);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _exportError = 'The PDF could not be opened. Open the saved file with a PDF viewer.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _openingPdf = false;
+        });
+      }
+    }
+  }
+
   Widget _filter<T>(
     String label,
     T? value,
@@ -185,10 +260,22 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
   Widget build(BuildContext context) => AdminPage(
     title: 'Payments',
     subtitle: 'Review checkout payments and confirm reception payments.',
-    actions: AdminButton.secondary(
-      label: 'Refresh',
-      icon: Icons.refresh,
-      onPressed: _busy ? null : _load,
+    actions: Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        AdminButton.secondary(
+          key: const Key('download-payment-register'),
+          label: _exporting ? 'Downloading PDF...' : 'Download PDF',
+          icon: Icons.download,
+          onPressed: _busy || _exporting || _openingPdf ? null : _downloadPdf,
+        ),
+        AdminButton.secondary(
+          label: 'Refresh',
+          icon: Icons.refresh,
+          onPressed: _busy ? null : _load,
+        ),
+      ],
     ),
     children: [
       AdminPanel(
@@ -281,6 +368,27 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
         'Dates are checkout record dates; the model does not store a separate confirmation date.',
       ),
       if (_notice != null) Semantics(liveRegion: true, child: Text(_notice!)),
+      if (_exportNotice != null || _exportError != null)
+        AdminPanel(
+          title: 'Payment Register',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_exportNotice != null)
+                Semantics(liveRegion: true, child: Text(_exportNotice!)),
+              if (_exportError != null)
+                Semantics(liveRegion: true, child: Text(_exportError!)),
+              if (_savedPdfPath != null) ...[
+                const SizedBox(height: 8),
+                AdminButton.secondary(
+                  label: _openingPdf ? 'Opening PDF...' : 'Open PDF',
+                  icon: Icons.open_in_new,
+                  onPressed: _openingPdf ? null : _openPdf,
+                ),
+              ],
+            ],
+          ),
+        ),
       if (_actionError != null)
         AdminPanel(
           title: 'Payment not confirmed',
