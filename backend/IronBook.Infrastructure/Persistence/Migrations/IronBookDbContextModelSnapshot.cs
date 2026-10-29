@@ -585,6 +585,10 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<string>("StripeRefundId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("MembershipId");
@@ -599,9 +603,15 @@ namespace IronBook.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[StripePaymentIntentId] IS NOT NULL");
 
+                    b.HasIndex("StripeRefundId")
+                        .IsUnique()
+                        .HasFilter("[StripeRefundId] IS NOT NULL");
+
                     b.ToTable("Payments", null, t =>
                         {
                             t.HasCheckConstraint("CK_Payments_StripeCard", "([StripeCheckoutKey] IS NULL AND [StripePaymentIntentId] IS NULL) OR ([PaymentMethod] = 'Card' AND [StripeCheckoutKey] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Payments_StripeRefund", "([StripeRefundId] IS NULL OR ([PaymentMethod] = 'Card' AND [StripePaymentIntentId] IS NOT NULL)) AND ([PaymentStatus] NOT IN ('RefundPending', 'Refunded') OR [StripeRefundId] IS NOT NULL)");
                         });
                 });
 

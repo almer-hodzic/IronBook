@@ -33,6 +33,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasFilter("[StripePaymentIntentId] IS NOT NULL");
         builder.HasIndex(payment => payment.StripeCheckoutKey).IsUnique()
             .HasFilter("[StripeCheckoutKey] IS NOT NULL");
+        builder.Property(payment => payment.StripeRefundId).HasMaxLength(255);
+        builder.HasIndex(payment => payment.StripeRefundId).IsUnique()
+            .HasFilter("[StripeRefundId] IS NOT NULL");
+        builder.ToTable("Payments", table => table.HasCheckConstraint("CK_Payments_StripeRefund",
+            "([StripeRefundId] IS NULL OR ([PaymentMethod] = 'Card' AND [StripePaymentIntentId] IS NOT NULL)) AND " +
+            "([PaymentStatus] NOT IN ('RefundPending', 'Refunded') OR [StripeRefundId] IS NOT NULL)"));
         builder.ToTable("Payments", table => table.HasCheckConstraint("CK_Payments_StripeCard",
             "([StripeCheckoutKey] IS NULL AND [StripePaymentIntentId] IS NULL) OR " +
             "([PaymentMethod] = 'Card' AND [StripeCheckoutKey] IS NOT NULL)"));

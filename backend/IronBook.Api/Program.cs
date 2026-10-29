@@ -77,6 +77,7 @@ builder.Services.AddScoped<IMemberNotificationService, MemberNotificationService
 builder.Services.AddScoped<IMemberProfileService, MemberProfileService>();
 builder.Services.AddScoped<IAdminReportService, AdminReportService>();
 builder.Services.AddScoped<IAdminPaymentService, AdminPaymentService>();
+builder.Services.AddScoped<IAdminPaymentRefundService, AdminPaymentRefundService>();
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 builder.Services.AddScoped<ICardPaymentGateway, StripeCardPaymentGateway>();
 builder.Services.AddScoped<IMembershipCardPaymentService, MembershipCardPaymentService>();

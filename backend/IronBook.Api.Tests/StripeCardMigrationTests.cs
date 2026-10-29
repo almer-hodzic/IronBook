@@ -51,7 +51,9 @@ public sealed class StripeCardMigrationTests
             var before = await db.Database.SqlQueryRaw<string>(fingerprintSql).SingleAsync();
             await db.GetService<IMigrator>().MigrateAsync("20261027111128_AddStripeCardPayments");
             Assert.Equal(before, await db.Database.SqlQueryRaw<string>(fingerprintSql).SingleAsync());
-            var payments = await db.Payments.AsNoTracking().OrderBy(row => row.Id).ToListAsync();
+            // Query only columns present at this historical migration boundary.
+            var payments = await db.Payments.AsNoTracking().OrderBy(row => row.Id)
+                .Select(row => new { row.PaymentStatus, row.StripeCheckoutKey, row.StripePaymentIntentId }).ToListAsync();
             Assert.Equal(2, payments.Count);
             Assert.All(payments, payment => { Assert.Null(payment.StripeCheckoutKey); Assert.Null(payment.StripePaymentIntentId); });
             Assert.Equal(PaymentStatus.Completed, payments[0].PaymentStatus);

@@ -1,4 +1,4 @@
-# Stripe sandbox membership checkout (Payments Parts 1 and 2)
+# Stripe sandbox membership checkout and refunds (Payments Parts 1–3)
 
 ## Previous flow and chosen integration
 
@@ -143,7 +143,7 @@ No usable Stripe sandbox key was present in checked local configuration during i
 
 ## Deferred work and limits
 
-Android Flutter Stripe UI, publishable-key configuration and client recovery are implemented in Part 2. Real native confirmation/3DS remains a manual QA requirement without matching sandbox credentials. Refunds, disputes, saved cards, subscriptions and Admin refund UI are not implemented.
+Android Flutter Stripe UI, publishable-key configuration and client recovery are implemented in Part 2. Part 3 adds backend full Card refunds as documented below. Real native confirmation/3DS remains a manual QA requirement without matching sandbox credentials. Partial refunds, disputes, saved cards, subscriptions and Admin refund UI are not implemented.
 
 Webhooks are intentionally deferred for this explicitly verified RSII sandbox flow. A successful Stripe payment stays locally Pending until the owning authenticated Member invokes verification, including after a client crash. No automatic reconciliation/fulfillment guarantee is claimed. A later production deployment needs a separately reviewed webhook/reconciliation strategy. There is no background polling, cancellation endpoint, provider-driven notification or additional worker infrastructure here.
 
@@ -200,4 +200,68 @@ No real confirmation is claimed by mock tests or a successful APK build. Use mat
 4. Close/reopen the app with a PendingCard purchase. My Membership must resume the existing ID. Test a lost initiation response and a lost completion response. Confirm recovery/verification uses the same purchase.
 5. Remove the publishable define: Card must show a controlled error, while Reception and Trainer features still work. Verify Reception remains PendingReception with its original instructions.
 
-Actual provider connectivity, native sheet behavior/3DS and matching-account credentials remain manual QA until that sandbox run is performed. Webhooks, refunds, automatic reconciliation, payment history redesign and desktop payment UI remain deferred.
+Actual provider connectivity, native sheet behavior/3DS and matching-account credentials remain manual QA until that sandbox run is performed. Webhooks, partial refunds, automatic reconciliation, payment history redesign and desktop payment UI remain deferred.
+
+## Backend full Card refund (Payments Part 3)
+
+### Eligibility and Admin contract
+
+`POST /api/admin/payments/{paymentId}/refund` is bodyless and requires the existing `AppRoles.Admin` authorization: anonymous is 401, Member/Trainer are 403. Only the route Payment ID selects the purchase. Request bodies/query fields cannot choose amount, currency, Member, Membership, provider transaction or a fabricated refund status. Missing Payment is generic 404; ineligible Payment is 409.
+
+A new refund requires Card, local Completed, the existing persisted Stripe PaymentIntent/checkout-key correlation, and its corresponding historical Membership. Legacy uncorrelated Card payments, PendingCard/Failed/Cancelled payments and every Reception payment are excluded. A RefundPending payment can only continue its existing correlated refund. A locally committed Refunded/Cancelled purchase returns the same 200 result without creating another provider operation.
+
+The endpoint uses the existing `ICardPaymentGateway` and official Stripe.net `RefundService`, not another payment-provider abstraction. Before creating a refund it retrieves the original PaymentIntent and verifies the same sandbox intent, successful Card payment, local Payment ID/checkout key, EUR currency, amount and full amount received. The requested refund amount is the original `Payment.Amount` converted exactly to cents; the plan's current price is never consulted. It sends that full original amount and the persisted PaymentIntent ID to [Stripe's Refund API](https://docs.stripe.com/api/refunds/create). It does not refund a remaining partial balance. Existing partial, multiple or uncorrelated external refunds require manual reconciliation instead of a new operation.
+
+### Provider truth and entitlement
+
+[Stripe Refund status](https://docs.stripe.com/api/refunds/object) can be `succeeded`, `pending`, `requires_action`, `failed` or `canceled`. Merely receiving a refund ID does not prove success.
+
+| Validated provider result | Payment | Membership | HTTP |
+| --- | --- | --- | --- |
+| `succeeded` | Refunded | Cancelled | 200 with refund result |
+| `pending` or `requires_action` | RefundPending | Unchanged | 202 with pending message/result |
+| `failed` or `canceled` | Completed | Unchanged | 409 with message/result; existing refund ID retained |
+| Missing/mismatched/unknown refund facts, provider/network failure, local persistence failure | Unchanged | Unchanged | 503; retry the same Payment ID |
+
+RefundPending is the one additional intermediate state required by the provider's asynchronous behavior. A later Admin call retrieves the same refund and can converge to Refunded/Cancelled. A pending refund does not prematurely remove entitlement. Failed/canceled refunds keep the original paid entitlement; repeating the endpoint checks the same failed refund and does not create a new one. Starting a different refund operation after a provider failure is manual work outside this task.
+
+200 returns `paymentId`, `membershipId`, original `amount`, `paymentStatus`, `membershipStatus`, and `stripeRefundId`. Pending/provider-declined responses carry `{ message, payment }`; safe errors never include raw SDK payloads or credentials. Refunded means Stripe reported `succeeded` for this project's lifecycle, not that the Member's bank has already posted the credit. Later provider-side changes need separately reviewed reconciliation; no webhook or bank-settlement guarantee is claimed.
+
+On success, only the Payment status/refund correlation and Membership status change, in one SQL transaction. IDs, amount, dates, creation timestamps and existing Stripe checkout/intent references remain. No Membership, Payment, CheckIn, coaching request, Training Report/exercise or Group enrollment is deleted. Existing My Membership QR generation and check-in validation already require Active Membership; changing this purchase to Cancelled removes its entitlement, including when an old signed QR is presented. QR/check-in code is unchanged. Other valid Active memberships continue to work normally.
+
+### Durable correlation, concurrency and recovery
+
+Migration `20261029082039_AddStripeCardRefunds` adds only nullable `Payments.StripeRefundId` (nvarchar(255)), a filtered unique index and a constraint requiring Card/intent correlation and a refund ID for RefundPending/Refunded. There is no new table, timestamp, raw provider payload or sensitive payment data. The existing opaque `StripeCheckoutKey` already supplies durable refund-operation identity.
+
+1. Every create uses stable idempotency key `ironbook-refund-{StripeCheckoutKey:N}` and the existing Payment ID/checkout-key metadata. The key is not regenerated per request.
+2. Transaction-owned `IronBook:payment-refund:{paymentId}` serializes competing refunds. The existing checkout lock for that Member/Center/plan is then acquired and the purchase re-read. Both locks stay held through provider work and local commit, coordinating Card completion without changing its implementation. Checkout operations never acquire the refund lock, so this acquisition order introduces no reverse lock order.
+3. A persisted refund ID is retrieved directly. If it is absent, all provider refunds for that PaymentIntent are inspected before creation. One matching full refund is recovered; partial/multiple/foreign refunds are rejected for manual reconciliation. This lookup is also needed beyond [Stripe's idempotency-cache lifetime](https://docs.stripe.com/api/idempotent_requests), which can expire after 24 hours. Stripe additionally refuses refunding more than the unrefunded charge balance.
+4. If Stripe succeeds but the response is lost or the SQL write/commit fails, SQL rolls back both local status changes. Retrying the same endpoint finds the matching provider refund and converges locally instead of issuing another create. Never change Payment ID, intent, amount or idempotency key to work around an error.
+5. Concurrent app calls produce one effective provider refund and one local final state. A committed replay is 200 without contacting Stripe. Contention or temporary failures can require another explicit request; there is no automatic HTTP retry, polling, worker, webhook or generic distributed-transaction framework. External direct SQL/provider edits remain outside application-lock discipline and can require manual reconciliation.
+
+Reception checkout/confirmation, Member Card checkout/completion, payment listing response shape, auth architecture and Flutter/desktop remain unchanged. The existing enum-based Admin list filter accepts the added refund status names; no payment-history or client filter redesign is included.
+
+### Automated and manual refund QA
+
+Refund tests use the existing fake Card gateway with isolated SQLite API fixtures and disposable SQL Server databases. They cover authorization, original purchase amount/correlation, body/query spoofing, ineligible methods/statuses, pending/failed/canceled/invalid provider states, idempotent replay, lost responses, transactional rollback/recovery, historical rows, QR entitlement, listing and SQL concurrency. A migration test preserves legacy rows and checks the new index/constraints. Existing Card/Reception tests remain regression coverage. Tests do not contact Stripe or write business data to `190027`.
+
+Run with the existing private `IRONBOOK_TEST_SQL_CONNECTION` for disposable SQL databases:
+
+```powershell
+dotnet build
+dotnet test IronBook.sln --no-build
+dotnet test IronBook.sln --no-build --filter 'FullyQualifiedName~StripeRefund|FullyQualifiedName~StripeMembershipPayment|FullyQualifiedName~StripeCardMigration|FullyQualifiedName~MembershipIdentity|FullyQualifiedName~SQL_checkout_competition|FullyQualifiedName~Checkout_payment_failure'
+git diff --check
+```
+
+Part 3 validation: all 538 backend tests passed, zero failed/skipped (499 existing plus 38 refund cases and one refund migration case). The focused payment/refund command passed 100 tests, including the two new SQL refund concurrency/rollback cases. Build completed with zero warnings/errors; the EF model matches its snapshot. Migration `20261029082039_AddStripeCardRefunds` was applied to `190027` only after checking the prior migration. All 21 existing table counts and SHA-256 original-column fingerprints matched before/after; no business records were inserted or changed. Payments, Memberships and Plans were empty and were left empty. No Stripe sandbox credentials/test payment were available for a real refund.
+
+Real sandbox refund verification remains final QA when matching credentials/test payments are available:
+
+1. Use a disposable QA purchase with a genuine Stripe test PaymentIntent completed through the approved flow; verify local Card/Completed and valid membership entitlement. Do not manufacture records or flip statuses in `190027` to simulate a paid purchase.
+2. Login as Admin and POST the bodyless refund route with its existing Bearer token. Supply no amount or Stripe identifier. Confirm the returned refund ID in the same Stripe sandbox and its full original EUR amount, even if the plan price changed.
+3. For `succeeded`, verify Payment Refunded, Membership Cancelled, unchanged IDs/amount/dates and historical rows. Present the old QR: it must be rejected. Confirm another non-refunded Active membership still works.
+4. Repeat the same endpoint and send simultaneous requests. Verify one provider refund, the same local refund ID and deterministic final result. Test pending/action-required refunds without calling them successful; retry to check that same refund. Test provider/transport interruption and local persistence failure in a disposable QA setup, then retry the same Payment ID to converge.
+5. Confirm anonymous/Member/Trainer rejection and Reception/uncorrelated/incomplete-payment rejection without provider refund creation. Check existing Reception confirmation remains independent.
+
+No real sandbox refund is claimed by fake-provider tests. Partial refunds, an Admin desktop refund button, webhooks, automatic reconciliation, payment-history redesign and the existing My Membership PendingCard precedence UX issue remain deferred.

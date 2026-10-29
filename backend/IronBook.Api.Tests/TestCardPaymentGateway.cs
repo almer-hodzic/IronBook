@@ -17,6 +17,42 @@ public sealed class TestCardPaymentGateway : ICardPaymentGateway
     public bool FailAfterCreate { get; set; }
     public bool FailGet { get; set; }
     public int GetCount { get; private set; }
+    public ConcurrentDictionary<string, CardPaymentRefund> Refunds { get; } = new();
+    public List<CardRefundReference> RefundCreates { get; } = [];
+    public bool FailRefundCreate { get; set; }
+    public bool FailAfterRefundCreate { get; set; }
+    public bool FailRefundRead { get; set; }
+    public string RefundStatus { get; set; } = "succeeded";
+    public Func<CardPaymentRefund, CardPaymentRefund>? ChangeRefund { get; set; }
+    public int RefundReads { get; private set; }
+
+    public Task<CardPaymentRefund> CreateRefundAsync(CardRefundReference reference, CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        if (FailRefundCreate) throw new CardPaymentGatewayException();
+        lock (RefundCreates) RefundCreates.Add(reference);
+        var id = "re_fixture_" + reference.CheckoutKey.ToString("N");
+        var refund = Refunds.GetOrAdd(id, new CardPaymentRefund(id, reference.PaymentIntentId, RefundStatus,
+            reference.Amount, reference.Currency, reference.PaymentId, reference.CheckoutKey));
+        if (FailAfterRefundCreate) throw new CardPaymentGatewayException();
+        return Task.FromResult(ChangeRefund?.Invoke(refund) ?? refund);
+    }
+
+    public Task<CardPaymentRefund> GetRefundAsync(string refundId, CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        RefundReads++;
+        if (FailRefundRead || !Refunds.TryGetValue(refundId, out var refund)) throw new CardPaymentGatewayException();
+        return Task.FromResult(ChangeRefund?.Invoke(refund) ?? refund);
+    }
+
+    public Task<IReadOnlyList<CardPaymentRefund>> FindRefundsAsync(string intentId, CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        if (FailRefundRead) throw new CardPaymentGatewayException();
+        return Task.FromResult<IReadOnlyList<CardPaymentRefund>>(Refunds.Values.Where(row => row.PaymentIntentId == intentId)
+            .Select(row => ChangeRefund?.Invoke(row) ?? row).ToArray());
+    }
 
     public void EnsureConfigured()
     {

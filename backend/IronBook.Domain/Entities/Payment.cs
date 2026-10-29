@@ -20,5 +20,7 @@ public class Payment
 
     public string? StripePaymentIntentId { get; set; }
 
+    public string? StripeRefundId { get; set; }
+
     public Membership Membership { get; set; } = null!;
 }
