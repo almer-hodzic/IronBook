@@ -4,12 +4,20 @@ import '../models/member_notification.dart';
 import '../models/paged_result.dart';
 import '../widgets/paging_controls.dart';
 import '../services/center_api_service.dart';
+import '../services/member_notification_poller.dart';
 import '../widgets/ironbook_mobile_components.dart';
 
 class MemberNotificationsScreen extends StatefulWidget {
-  const MemberNotificationsScreen({super.key, required this.centerApiService});
+  const MemberNotificationsScreen({
+    super.key,
+    required this.centerApiService,
+    this.onNotificationsChanged,
+    this.poller,
+  });
 
   final CenterApiService centerApiService;
+  final Future<void> Function()? onNotificationsChanged;
+  final MemberNotificationPoller? poller;
 
   @override
   State<MemberNotificationsScreen> createState() =>
@@ -23,53 +31,108 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
   final Set<int> _markingRead = {};
   final Map<int, String> _readErrors = {};
   bool _loading = false;
+  bool _refreshing = false;
+  bool _refreshAfterBusy = false;
+  late final MemberNotificationPoller _poller;
   String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _poller =
+        widget.poller ??
+        MemberNotificationPoller(
+          onPoll: _poll,
+          onResume: () => _poll(afterResume: true),
+        );
+    _poller.onPoll = _poll;
+    _poller.onResume = () => _poll(afterResume: true);
+    _poller.start();
+    _load(refreshBadge: false);
   }
 
-  Future<void> _load() async {
-    if (_loading || _markingRead.isNotEmpty) return;
+  @override
+  void dispose() {
+    if (widget.poller == null) {
+      _poller.dispose();
+    }
+    // The Member root owns a borrowed timer and reclaims it on navigation return.
+    super.dispose();
+  }
+
+  void _poll({bool afterResume = false}) {
+    if (_refreshing || _markingRead.isNotEmpty) {
+      if (afterResume) _refreshAfterBusy = true;
+      return;
+    }
+    _load(silent: true);
+  }
+
+  void _runQueuedRefresh() {
+    if (_refreshAfterBusy &&
+        mounted &&
+        _poller.isForeground &&
+        !_refreshing &&
+        _markingRead.isEmpty) {
+      _refreshAfterBusy = false;
+      _poll();
+    }
+  }
+
+  Future<void> _load({bool silent = false, bool refreshBadge = true}) async {
+    if (!_poller.isForeground || _refreshing || _markingRead.isNotEmpty) return;
+    _refreshing = true;
     setState(() {
-      _loading = true;
-      _loadError = null;
-      _readErrors.clear();
+      if (!silent) {
+        _loading = true;
+        _loadError = null;
+        _readErrors.clear();
+      }
     });
     try {
-      final page = await loadAvailablePage(
-        _pageNumber,
-        (number) =>
-            widget.centerApiService.getMemberNotifications(pageNumber: number),
-      );
-      if (!mounted) return;
+      final page = await loadAvailablePage(_pageNumber, (number) {
+        if (!mounted || !_poller.isForeground) {
+          throw const CenterApiException('Notification refresh was stopped.');
+        }
+        return widget.centerApiService.getMemberNotifications(
+          pageNumber: number,
+        );
+      });
+      if (!mounted || !_poller.isForeground) return;
       setState(() {
         _notifications = page.items;
         _page = page;
         _pageNumber = page.pageNumber;
         _loading = false;
+        _loadError = null;
       });
+      if (refreshBadge) await widget.onNotificationsChanged?.call();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || !_poller.isForeground) return;
       setState(() {
         _loading = false;
-        _loadError = error.toString();
+        if (!silent) _loadError = error.toString();
       });
+    } finally {
+      _refreshing = false;
+      if (mounted) {
+        setState(() => _loading = false);
+        _runQueuedRefresh();
+      }
     }
   }
 
   void _changePage(int number) {
-    if (_loading || _markingRead.isNotEmpty) return;
+    if (_refreshing || _markingRead.isNotEmpty) return;
     _pageNumber = number;
     _load();
   }
 
   Future<void> _markRead(MemberNotification notification) async {
-    if (notification.isRead ||
+    if (!_poller.isForeground ||
+        notification.isRead ||
         _markingRead.contains(notification.id) ||
-        _loading) {
+        _refreshing) {
       return;
     }
     setState(() {
@@ -80,19 +143,22 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
       final updated = await widget.centerApiService.markNotificationRead(
         notification.id,
       );
-      if (!mounted) return;
+      if (!mounted || _poller.isDisposed) return;
       setState(() {
         _notifications = _notifications!
             .map((item) => item.id == updated.id ? updated : item)
             .toList();
         _markingRead.remove(notification.id);
       });
+      await widget.onNotificationsChanged?.call();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || _poller.isDisposed) return;
       setState(() {
         _markingRead.remove(notification.id);
         _readErrors[notification.id] = error.toString();
       });
+    } finally {
+      _runQueuedRefresh();
     }
   }
 
@@ -121,7 +187,7 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
                 ),
               ),
             IronBookMobileButton.secondary(
-              onPressed: _loading || _markingRead.isNotEmpty ? null : _load,
+              onPressed: _refreshing || _markingRead.isNotEmpty ? null : _load,
               label: _loadError == null ? 'Refresh' : 'Retry',
               icon: Icons.refresh,
             ),
@@ -157,7 +223,8 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
                 child: InkWell(
                   onTap:
                       notification.isRead ||
-                          _markingRead.contains(notification.id)
+                          _markingRead.contains(notification.id) ||
+                          _refreshing
                       ? null
                       : () => _markRead(notification),
                   borderRadius: BorderRadius.circular(18),
@@ -233,7 +300,7 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen> {
           PagingControls(
             pageNumber: _page!.pageNumber,
             totalPages: _page!.totalPages,
-            busy: _markingRead.isNotEmpty,
+            busy: _refreshing || _markingRead.isNotEmpty,
             onPageChanged: _changePage,
           ),
       ],

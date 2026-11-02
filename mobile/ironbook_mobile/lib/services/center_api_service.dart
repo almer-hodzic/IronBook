@@ -181,10 +181,15 @@ class CenterApiService {
   }
 
   // The existing home badge represents all unread notifications, not just page 1.
-  Future<int> getUnreadNotificationCount() async {
+  Future<int> getUnreadNotificationCount({
+    bool Function()? shouldContinue,
+  }) async {
     var number = 1;
     var unread = 0;
     while (true) {
+      if (shouldContinue != null && !shouldContinue()) {
+        throw const CenterApiException('Notification refresh was stopped.');
+      }
       final page = await getMemberNotifications(
         pageNumber: number,
         pageSize: 100,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/center.dart';
 import '../services/center_api_service.dart';
+import '../services/member_notification_poller.dart';
 import '../theme/ironbook_mobile_colors.dart';
 import '../widgets/ironbook_mobile_components.dart';
 import 'center_details_screen.dart';
@@ -28,7 +29,11 @@ class CenterListScreen extends StatefulWidget {
 
 class _CenterListScreenState extends State<CenterListScreen> {
   late Future<List<FitnessCenter>> _centersFuture;
-  late Future<int> _notificationsFuture;
+  late final MemberNotificationPoller _notificationPoller;
+  Future<void>? _unreadRequest;
+  int? _unreadCount;
+  bool _refreshUnreadAgain = false;
+  bool _notificationsOpen = false;
   final _searchController = TextEditingController();
   int? _selectedCenterId;
   String _searchQuery = '';
@@ -37,11 +42,16 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void initState() {
     super.initState();
     _centersFuture = widget.centerApiService.getCenters();
-    _notificationsFuture = widget.centerApiService.getUnreadNotificationCount();
+    _notificationPoller = MemberNotificationPoller(
+      onPoll: _refreshUnread,
+      onResume: () => _refreshUnread(ensureFresh: true),
+    )..start();
+    _refreshUnread();
   }
 
   @override
   void dispose() {
+    _notificationPoller.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -49,9 +59,36 @@ class _CenterListScreenState extends State<CenterListScreen> {
   void _retry() {
     setState(() {
       _centersFuture = widget.centerApiService.getCenters();
-      _notificationsFuture = widget.centerApiService
-          .getUnreadNotificationCount();
     });
+    _refreshUnread();
+  }
+
+  Future<void> _refreshUnread({bool ensureFresh = false}) {
+    if (!mounted || !_notificationPoller.isForeground) return Future.value();
+    if (_unreadRequest != null) {
+      if (ensureFresh) _refreshUnreadAgain = true;
+      return _unreadRequest!;
+    }
+    return _unreadRequest = _loadUnread();
+  }
+
+  Future<void> _loadUnread() async {
+    do {
+      _refreshUnreadAgain = false;
+      try {
+        final count = await widget.centerApiService.getUnreadNotificationCount(
+          shouldContinue: () => mounted && _notificationPoller.isForeground,
+        );
+        if (mounted && _notificationPoller.isForeground) {
+          setState(() => _unreadCount = count);
+        }
+      } catch (_) {
+        // Keep the last complete count. A failed later page never becomes a badge.
+      }
+    } while (mounted &&
+        _refreshUnreadAgain &&
+        _notificationPoller.isForeground);
+    _unreadRequest = null;
   }
 
   Future<void> _openCenter(FitnessCenter center) async {
@@ -89,18 +126,24 @@ class _CenterListScreenState extends State<CenterListScreen> {
   }
 
   Future<void> _openNotifications() async {
+    if (_notificationsOpen) return;
+    _notificationsOpen = true;
+    _notificationPoller.stop();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => MemberNotificationsScreen(
           centerApiService: widget.centerApiService,
+          onNotificationsChanged: () => _refreshUnread(ensureFresh: true),
+          poller: _notificationPoller,
         ),
       ),
     );
     if (!mounted) return;
-    setState(() {
-      _notificationsFuture = widget.centerApiService
-          .getUnreadNotificationCount();
-    });
+    _notificationsOpen = false;
+    _notificationPoller.onPoll = _refreshUnread;
+    _notificationPoller.onResume = () => _refreshUnread(ensureFresh: true);
+    _notificationPoller.start();
+    await _refreshUnread(ensureFresh: true);
   }
 
   @override
@@ -117,24 +160,14 @@ class _CenterListScreenState extends State<CenterListScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              FutureBuilder<int>(
-                future: _notificationsFuture,
-                builder: (context, snapshot) {
-                  final unread =
-                      snapshot.connectionState == ConnectionState.done &&
-                          !snapshot.hasError
-                      ? snapshot.data
-                      : null;
-                  return Badge.count(
-                    count: unread ?? 0,
-                    isLabelVisible: unread != null && unread > 0,
-                    child: IconButton(
-                      tooltip: 'Notifications',
-                      icon: const Icon(Icons.notifications_none),
-                      onPressed: _openNotifications,
-                    ),
-                  );
-                },
+              Badge.count(
+                count: _unreadCount ?? 0,
+                isLabelVisible: _unreadCount != null && _unreadCount! > 0,
+                child: IconButton(
+                  tooltip: 'Notifications',
+                  icon: const Icon(Icons.notifications_none),
+                  onPressed: _openNotifications,
+                ),
               ),
               const SizedBox(width: 8),
               IconButton(

@@ -85,8 +85,9 @@ their own resource identities requires a separately approved notification-model/
   nor recipient fan-out fits the current request-linked event/unique-event convention unchanged.
 
 No Membership, payment or Group workflow was modified. Member-initiated self-cancellation remains
-silent. No expiry scheduler, Center/new-class broadcasts, notification preferences, Trainer/Admin inbox,
-mobile polling/auto-refresh, push/Firebase/APNs, email/SMS or desktop notifications are added.
+silent. Expiry scheduling, Center/new-class broadcasts, notification preferences, Trainer/Admin inboxes,
+push/Firebase/APNs, email/SMS and desktop notifications remain deferred. Backend Part 1 did not add
+mobile polling; the mobile-only Part 2 behavior is documented below.
 
 ## Verification
 
@@ -111,6 +112,72 @@ Validation for Notifications Part 1: build passed with zero warnings/errors; all
 tests passed (589 baseline plus 28 new event tests), with zero failures/skips. The 28 new tests
 passed separately, including 11 disposable SQL cases. The focused event/identity/pagination
 regression run passed all 49 tests. Full diff/scope review and `git diff --check` passed.
+
+## Member mobile refresh - Part 2
+
+Before Part 2, the Center-selection home badge loaded on entry, Center retry and return from
+Notifications. It already fetched every notification page at pageSize 100 and rejected the whole
+count if a later page failed. Notifications already supported Previous/Next, current-page manual
+Refresh/Retry, last-page fallback and server-confirmed mark-read. Neither screen polled or observed
+app lifecycle; the badge only updated after returning from the inbox.
+
+Member mobile now uses a deterministic **30-second interval**. This is lightweight HTTP polling,
+not push or realtime delivery. Backend/worker delivery remains asynchronous; a newly persisted
+notification is normally seen on a later successful refresh. No OS notification is generated.
+
+`MemberNotificationPoller` is a small timer/lifecycle helper local to Member notifications. The
+authenticated Member root owns one timer. While Notifications is open, that screen temporarily
+uses the same timer for current-page refresh, then refreshes the home badge sequentially. Returning
+reclaims the timer for the home badge and immediately refreshes the count. Other Member navigation
+does not couple polling to a selected Center. Trainer and unsupported/unauthenticated roots do not
+create this timer. A standalone Notifications screen owns/disposes its own helper.
+
+- **Badge:** every successful refresh uses the complete existing pageSize-100 traversal, not just
+  the current inbox page. The last complete count remains visible during refresh/failure; no known
+  count means no badge label. A later-page failure never publishes a partial count or fabricated zero.
+- **Inbox:** polling silently replaces the current page's items using the existing pageSize 20,
+  ordering and `loadAvailablePage` fallback. It does not reset to page 1 on every tick, append rows,
+  duplicate cards or change the DTO. If the current page disappears, the existing helper loads the
+  last available page (page 1 for an empty result).
+- **Manual refresh:** existing Refresh/Retry remains available and uses the same page-loading path.
+  Its loading/error feedback is preserved. Automatic failures keep visible rows/page metadata, and
+  do not show repeated snackbars/dialogs or replace data with an error panel.
+- **Read synchronization:** a row changes only after a matching successful PUT response confirms
+  `isRead`. It then refreshes the full home count immediately, before navigation back. Failure keeps
+  the row unread and its existing retry feedback; it does not decrement the badge locally.
+- **Lifecycle:** inactive, hidden, paused and detached states cancel the timer. Resuming requests
+  an immediate refresh and restarts the 30-second timer. A busy refresh/mutation coalesces one resume
+  refresh rather than overlapping requests. Logging out/disposal cancels the Member-owned timer,
+  including when it is borrowed by the inbox. Already-issued HTTP requests may finish; mounted and
+  lifecycle guards suppress obsolete updates and prevent subsequent count/fallback page requests
+  while stopped. No background service or network cancellation framework is introduced.
+- **Concurrency:** a busy count pass skips later timer ticks; a read/resume request can queue one
+  fresh pass after it. Page refresh and mark-read have guards against competing refreshes. Home
+  and inbox do not run separate periodic count timers. Failed automatic calls wait for the next
+  normal interval/manual action; there is no independent auth retry, login, token refresh or logout.
+
+All requests still use the existing Member Bearer client and notification API, with no Center or
+other acting-Member selector. No backend, desktop, shared-auth, recommendation, payment/PDF,
+notification DTO, database or migration changes are part of mobile Part 2. Membership/Group events,
+expiry jobs, email/SMS, push and Trainer/Admin inboxes remain deferred.
+
+`member_notification_refresh_test.dart` uses fake clock advancement and controlled futures, with
+no real 30-second waits or live backend. Existing notification, pagination, auth, Trainer and
+Recommendations tests remain regression coverage. Run from `mobile/ironbook_mobile`:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter test test/member_notification_refresh_test.dart test/member_notifications_test.dart test/member_pagination_test.dart
+flutter build apk --debug
+```
+
+Part 2 validation: dependency restore passed; analysis reported zero issues; all 337 mobile
+tests passed (310 baseline plus 27 new refresh tests). The focused polling/notification/pagination
+run passed all 55 tests. Android debug APK build succeeded. Diff/scope review and
+`git diff --check` passed. Tests use mocked API data and fake time; no live backend delivery or
+push-notification verification is claimed.
 
 ## Configuration and local execution
 
@@ -138,4 +205,5 @@ dotnet run --project backend/IronBook.Notifications.Worker
 ```
 
 Notifications come only from the real request/report transitions listed above; no notification
-seed data is added. There is no new migration, dependency, configuration or Flutter change.
+seed data is added. The backend event work introduced no migration, dependency, configuration
+or Flutter change; Part 2 adds only the mobile refresh behavior described above.

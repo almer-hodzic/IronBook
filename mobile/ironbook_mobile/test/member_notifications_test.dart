@@ -192,7 +192,10 @@ void main() {
       await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
       expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
-      expect(gets, 3);
+      expect(
+        gets,
+        4,
+      ); // Badge now also refreshes immediately after confirmed mark-read.
     },
   );
 
