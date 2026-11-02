@@ -75,6 +75,7 @@ public sealed partial class DatabaseSeeder
         await EnsureDemoPreferenceAsync(DemoId, "Build Strength", ["performance"], cancellationToken);
         await EnsureDemoPreferenceAsync(DemoId + 1, "Recovery", ["conditioning"], cancellationToken);
         await SeedDemoWeekAsync(cancellationToken);
+        await SeedDemoMembershipsAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 

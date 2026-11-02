@@ -75,8 +75,8 @@ public class DemoSeedTests
         Assert.Equal(5, accounts.Select(row => row.PasswordHash).Distinct().Count());
         Assert.Equal(First, accounts[1].MemberProfileId); Assert.Equal(First + 1, accounts[2].MemberProfileId);
         Assert.Equal(First, accounts[3].TrainerProfileId); Assert.Equal(First + 1, accounts[4].TrainerProfileId);
-        Assert.Empty(await db.AuthSessions.ToListAsync()); Assert.Empty(await db.Memberships.ToListAsync());
-        Assert.Empty(await db.Payments.ToListAsync()); Assert.Empty(await db.CheckIns.ToListAsync());
+        Assert.Empty(await db.AuthSessions.ToListAsync()); Assert.Equal(2, await db.Memberships.CountAsync());
+        Assert.Equal(2, await db.Payments.CountAsync()); Assert.Empty(await db.CheckIns.ToListAsync());
         Assert.Empty(await db.TrainingRequests.ToListAsync()); Assert.Empty(await db.CoachingRequestStatusHistory.ToListAsync());
         Assert.Empty(await db.TrainingReports.ToListAsync()); Assert.Empty(await db.TrainingReportExercises.ToListAsync());
         Assert.Empty(await db.GroupTrainingEnrollments.ToListAsync()); Assert.Empty(await db.Notifications.ToListAsync());
@@ -244,7 +244,7 @@ public class DemoSeedTests
         Assert.All(result.Trainers, row => Assert.Equal(0, row.ApprovedCoachingRequestCount));
         Assert.All(result.GroupTrainings, row => Assert.Equal(0, row.EnrollmentCount));
         await using var db = fixture.CreateDb();
-        Assert.Empty(await db.Memberships.ToListAsync()); Assert.Empty(await db.Payments.ToListAsync());
+        Assert.Equal(2, await db.Memberships.CountAsync()); Assert.Equal(2, await db.Payments.CountAsync());
         Assert.Empty(await db.TrainingRequests.ToListAsync()); Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
     }
 

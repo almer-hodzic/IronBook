@@ -4,6 +4,10 @@ The existing `DatabaseSeeder` now has a separate, optional `SeedDemoCoreDataAsyn
 is Development/demo data for Iron Core Fitness, not production activity or evaluation results.
 No dataset was applied to `190027` during implementation or automated verification.
 
+Part 2A below extends the same opted-in seed with two Reception-backed purchases. The Part 1
+accounts, catalog, preferences, weekly classes and preservation rules remain in place; no second
+toggle or seed endpoint is introduced.
+
 ## Enable explicitly
 
 Both conditions are required:
@@ -75,8 +79,8 @@ assigned to both demo Centers (four assignments). No existing Trainer/Profile is
 | 1000002 | Demo Plus | 69.00 | Both demo Centers |
 | 1000003 | Demo Complete | 89.00 | Both demo Centers |
 
-All plans and six Plan-Center assignments start active. No Membership or Payment is purchased.
-The seed records reference/catalog data, not payment-provider results or billing history.
+All plans and six Plan-Center assignments start active. These Part 1 rows are reference/catalog
+data. Part 2A below adds two small Membership/Reception Payment scenarios separately.
 
 - Mila: main goal **Build Strength**, interest **performance**.
 - Haris: main goal **Recovery**, interest **conditioning**.
@@ -160,18 +164,92 @@ This uses the actual saved preferences, active assignments and future class cate
 weights, scores, ordering or reasons in the recommender are changed. Coaching popularity and Group
 occupancy remain zero until real demo actions create them; no fake popularity/history is inserted.
 
-## Deferred to Part 2
+## Part 2A - Membership and Reception Payment scenarios
 
-No Memberships, Card/Reception payments, Stripe completion/refund scenarios, CheckIns, Coaching
-Requests/history, Training Reports/exercises, Progress Log entries, notifications/outbox rows,
-Group enrollments, concurrency examples or large pagination datasets are seeded. No schema,
-migration, Flutter, notification, PDF, payment or auth-behavior changes are introduced.
+The existing Development + `DemoSeed__Enabled=true` gates now also insert these two purchases
+when missing. Default remains OFF. They use Marijin Dvor (Demo), with the existing active
+Member, Center, Plan and Plan-Center relationship required for a new purchase.
+
+| Account | Membership ID | Plan | Membership status | Payment ID | Method/status | Amount, EUR |
+| --- | --- | --- | --- | --- | --- | --- |
+| `demo.member.strength` | 1000001 | Demo Essential | Active | 1000001 | Reception / Completed | 49.00 |
+| `demo.member.recovery` | 1000002 | Demo Plus | Pending | 1000002 | Reception / PendingReception | 69.00 |
+
+Amounts come from the saved Plan price at insertion (the table shows fresh Part 1 prices).
+The first pair represents a Reception purchase already confirmed. The second matches normal
+Reception checkout and is never auto-confirmed by seeding. No production Membership, Payment
+or confirmation rules are changed. These are explicitly labeled Development demo scenarios,
+not real revenue or Stripe sandbox results.
+
+### Live demonstration
+
+1. Log in on mobile as `demo.member.strength`. My Membership returns Active/Completed with the
+   selected Center and Essential Plan. Its signed entry QR is available under the existing rules.
+2. Log in as `demo.member.recovery`. My Membership returns Pending/PendingReception, without QR
+   access. The seed has not activated that purchase.
+3. On desktop, log in as `demo.admin`, open Payments, and filter by Marijin Dvor (Demo), Reception
+   and PendingReception. Confirm Haris Demo's payment through the existing confirmation dialog.
+4. Refresh the recovery Member's My Membership. The same Membership is now Active and the same
+   Payment Completed, with QR access. Amount, IDs and validity dates remain unchanged. Repeating
+   confirmation returns the existing conflict; rerunning seed does not undo the confirmation.
+
+Both Part 1 demo Members are used by these two scenarios. There is **no third guaranteed
+no-membership demo Member**. No extra account is added. The separate foundation evaluator `member`
+may have no Membership on a fresh database, but existing legitimate evaluator data is preserved
+and the seed does not promise or enforce that state.
+
+### Dates, ownership and reruns
+
+On first insertion, use the seed clock's UTC calendar date. The Active purchase starts three
+days earlier; the Pending purchase starts today. Each ends one calendar month after its own
+start, matching checkout's monthly validity convention. The Active purchase is therefore valid
+on insertion, and the Pending purchase has a useful confirmation period.
+
+Dates are initialized once, not renewed each day/week. Same-week and later-week reruns preserve
+existing Membership/Payment periods, statuses, prices and edits. Eventually a demo period can
+expire; rerunning does not extend it or make an old Pending purchase confirmable again. Use a
+fresh disposable demo database for a fresh period or review any deliberate cleanup separately.
+Do not wipe `190027` or delete legitimate activity to reset a demo.
+
+Membership and Payment IDs 1000001/1000002 are reserved per table and use the same immutable
+`2026-01-01T00:00:00Z` CreatedAt ownership stamp as Part 1. This stamp is metadata identifying
+seed ownership, not the actual checkout time; StartDate/EndDate describe validity. Missing rows
+are inserted, never adopted by display names. An unrelated reserved-ID occupant causes atomic
+rejection. An existing Active/Pending purchase for the same Member/Center/Plan also causes safe
+rejection rather than a duplicate. Complete existing demo pairs are left unchanged. A missing
+Payment is restored only for the original Active/Pending Membership relationship with no other
+Payment; ambiguous/changed relationships are rejected rather than replaced.
+
+The core catalog, weekly batch and purchases commit in the same seed transaction. The seed also
+holds the existing per-Member/Center/Plan checkout application locks through commit; existing
+filtered Membership uniqueness remains in force. An insertion failure or collision rolls back
+the attempted seed, without altering unrelated business rows or resetting identity counters.
+
+### Explicit exclusions
+
+Part 2B remains deferred; no additional activity scenarios are introduced here.
+
+Every seeded Payment is Reception. `StripeCheckoutKey`, `StripePaymentIntentId` and
+`StripeRefundId` are all null. Card/Refunded records with invented provider IDs would not be
+valid Stripe-backed activity; use real sandbox QA or isolated test fixtures for those scenarios.
+
+No refunds, CheckIns, Coaching Requests/history, Training Reports/exercises, Progress Log entries,
+notifications/outbox rows, Group enrollments, workflow edge-case datasets or pagination stress
+datasets are seeded. No schema, migration, Flutter, notification, PDF, production payment/auth
+behavior or recommendation change is introduced.
 
 ## Verification
 
 `DemoSeedTests` uses generated `IronBookDemoSeedTests_<guid>` SQL Server databases, replacing the
 configured catalog before opening a connection. They are deleted afterward, including temporary
 sessions created by real HTTP login/recommendation tests. `190027` is never used by these fixtures.
+
+`DemoMembershipSeedTests` reuses those disposable fixtures. It checks Reception states and dates,
+both gates, idempotency, edits/unrelated-data preservation, reserved-ID/duplicate rejection,
+rollback, concurrency, and null Stripe fields. HTTP tests exercise the real Member My Membership,
+Admin Payment list/confirmation and signed QR/Check-In validation paths. CheckIn/session rows in
+those tests are produced only by the normal APIs in their disposable databases and deleted with
+the fixture; they are not part of the seed.
 
 Tests cover both gates, core relationships/password hashing, stable IDs, reruns, preservation of
 unrelated records and demo edits, ID/username collisions, rollback, concurrent runs, weekly additions
@@ -184,6 +262,7 @@ Run from the root with the existing private disposable-SQL test connection confi
 dotnet build
 dotnet test IronBook.sln --no-build
 dotnet test IronBook.sln --no-build --filter FullyQualifiedName~DemoSeedTests
+dotnet test IronBook.sln --no-build --filter FullyQualifiedName~DemoMembershipSeedTests
 git diff --check
 ```
 
@@ -193,3 +272,10 @@ SQL run also passed all 23 tests. Diff/scope and whitespace checks passed. Compo
 validated with ephemeral process-only JWT/QR values because the required private variables were
 not set in the validation shell; no services were started or keys saved. Mobile/desktop and
 `190027` were untouched. No schema/migration change was made.
+
+Part 2A validation: build passed with zero warnings/errors. All **666 backend tests** passed
+(640 baseline plus **26 Membership/Reception seed tests**), with zero failed/skipped. The separate
+focused Part 2A run passed all 26 tests. The earlier core-seed assertions were updated only for
+the two newly approved purchases; their other safety, relationship and preservation checks remain.
+HTTP/QR/confirmation verification used disposable SQL databases only. No seed was applied to
+`190027`, no schema/migration was added, and mobile/desktop remained untouched.
