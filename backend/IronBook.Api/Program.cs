@@ -56,7 +56,7 @@ builder.Services.AddScoped<ICurrentMemberService, CurrentMemberService>();
 builder.Services.AddScoped<ICurrentTrainerService, CurrentTrainerService>();
 builder.Services.AddIronBookJwtAuthentication();
 builder.Services.AddDbContext<IronBookDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(SqlServerConfiguration.RequireConnectionString(builder.Configuration)));
 builder.Services.AddScoped<ICenterReadService, CenterReadService>();
 builder.Services.AddScoped<IAdminCenterService, AdminCenterService>();
 builder.Services.AddScoped<IAdminMembershipPlanService, AdminMembershipPlanService>();
@@ -103,6 +103,10 @@ _ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<JwtOpt
 
 // Validate QR configuration before any development seed/database work.
 _ = app.Services.GetRequiredService<IMembershipAccessTokenService>();
+
+// Resolve configuration before accepting requests; construction does not connect or migrate.
+using (var configurationScope = app.Services.CreateScope())
+    _ = configurationScope.ServiceProvider.GetRequiredService<IronBookDbContext>();
 
 if (app.Environment.IsDevelopment())
 {

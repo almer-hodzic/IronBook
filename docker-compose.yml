@@ -4,10 +4,10 @@ services:
     container_name: ironbook-sqlserver
     environment:
       ACCEPT_EULA: ${ACCEPT_EULA:-Y}
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Change_this_dev_password_123!}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set a private SQL Server password in .env}
       MSSQL_PID: ${MSSQL_PID:-Developer}
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     networks:
@@ -24,10 +24,11 @@ services:
     container_name: ironbook-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-ironbook}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change_this_rabbit_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set a private RabbitMQ password in .env}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -44,23 +45,25 @@ services:
       dockerfile: backend/IronBook.Api/Dockerfile
     container_name: ironbook-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       DevelopmentMember__MemberProfileId: ${DevelopmentMember__MemberProfileId:-}
       DemoSeed__Enabled: ${DemoSeed__Enabled:-false}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=Change_this_dev_password_123!;TrustServerCertificate=True;}
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Set a private SQL Server password in .env};TrustServerCertificate=True;}
       RabbitMQ__Host: ${RabbitMQ__Host:-rabbitmq}
       RabbitMQ__QueueName: ${RabbitMQ__QueueName:-ironbook.member-notifications}
       RabbitMQ__Port: ${RabbitMQ__Port:-5672}
-      RabbitMQ__Username: ${RabbitMQ__Username:-ironbook}
-      RabbitMQ__Password: ${RabbitMQ__Password:-change_this_rabbit_password}
+      RabbitMQ__Username: ${RabbitMQ__Username:-${RABBITMQ_DEFAULT_USER:-ironbook}}
+      RabbitMQ__Password: ${RabbitMQ__Password:-${RABBITMQ_DEFAULT_PASS:?Set a private RabbitMQ password in .env}}
+      RabbitMQ__VirtualHost: ${RabbitMQ__VirtualHost:-${RABBITMQ_DEFAULT_VHOST:-/}}
       Jwt__Issuer: ${Jwt__Issuer:-IronBook}
       Jwt__Audience: ${Jwt__Audience:-IronBookClients}
+      Jwt__ExpirationMinutes: ${Jwt__ExpirationMinutes:-60}
       Jwt__SigningKey: ${Jwt__SigningKey:?Set a private JWT signing key}
       QrAccess__SigningKey: ${QrAccess__SigningKey:?Set a private QR signing key}
       Stripe__SecretKey: ${Stripe__SecretKey:-}
     ports:
-      - "5000:8080"
+      - "127.0.0.1:5000:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -75,13 +78,14 @@ services:
       dockerfile: backend/IronBook.Notifications.Worker/Dockerfile
     container_name: ironbook-notifications-worker
     environment:
-      DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=Change_this_dev_password_123!;TrustServerCertificate=True;}
+      DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:-Server=sqlserver,1433;Database=190027;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Set a private SQL Server password in .env};TrustServerCertificate=True;}
       RabbitMQ__Host: ${RabbitMQ__Host:-rabbitmq}
       RabbitMQ__QueueName: ${RabbitMQ__QueueName:-ironbook.member-notifications}
       RabbitMQ__Port: ${RabbitMQ__Port:-5672}
-      RabbitMQ__Username: ${RabbitMQ__Username:-ironbook}
-      RabbitMQ__Password: ${RabbitMQ__Password:-change_this_rabbit_password}
+      RabbitMQ__Username: ${RabbitMQ__Username:-${RABBITMQ_DEFAULT_USER:-ironbook}}
+      RabbitMQ__Password: ${RabbitMQ__Password:-${RABBITMQ_DEFAULT_PASS:?Set a private RabbitMQ password in .env}}
+      RabbitMQ__VirtualHost: ${RabbitMQ__VirtualHost:-${RABBITMQ_DEFAULT_VHOST:-/}}
     depends_on:
       sqlserver:
         condition: service_healthy

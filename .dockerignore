@@ -1,0 +1,17 @@
+# The .NET images need only the solution and backend sources.
+**
+!IronBook.sln
+!backend/
+!backend/**
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+backend/**/secrets/
+backend/**/.env
+backend/**/.env.*
+backend/**/*.user
+backend/**/*.secret
+backend/**/*.secrets
+backend/**/*.pfx
+backend/**/*.pem
+backend/**/*.key
