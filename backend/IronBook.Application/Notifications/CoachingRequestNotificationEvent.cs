@@ -1,5 +1,6 @@
 namespace IronBook.Application.Notifications;
 
+// Existing request-linked envelope; TrainingDate is optional for older coaching events.
 public sealed record CoachingRequestNotificationEvent(
     Guid EventId,
     int TrainingRequestId,
@@ -8,4 +9,5 @@ public sealed record CoachingRequestNotificationEvent(
     string TrainerName,
     string CenterName,
     DateTime RequestedStartAt,
-    DateTime OccurredAt);
+    DateTime OccurredAt,
+    DateTime? TrainingDate = null);

@@ -83,7 +83,7 @@ public class TrainingReportIdentityTests
         Assert.Equal(saved.CreatedAt, (await db.TrainingReports.AsNoTracking().SingleAsync()).CreatedAt);
         Assert.Equal(2, await db.TrainingReportExercises.CountAsync());
         Assert.Equal(TrainingRequestStatus.Approved, (await db.TrainingRequests.SingleAsync(row => row.Id == fixture.OwnRequestId)).Status);
-        Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
+        Assert.Single(await db.NotificationOutboxMessages.ToListAsync());
     }
 
     [Fact]

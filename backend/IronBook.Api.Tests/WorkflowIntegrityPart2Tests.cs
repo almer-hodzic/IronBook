@@ -40,7 +40,7 @@ public class WorkflowIntegrityPart2Tests
         Assert.Equal(hasReport ? 1 : 0, await verify.TrainingReports.CountAsync());
         Assert.Equal(hasReport ? 1 : 0, await verify.TrainingReportExercises.CountAsync());
         Assert.Equal(hasReport ? 0 : 1, await verify.CoachingRequestStatusHistory.CountAsync());
-        Assert.Equal(hasReport ? 0 : (admin ? 1 : 0), await verify.NotificationOutboxMessages.CountAsync());
+        Assert.Equal(hasReport ? 1 : (admin ? 1 : 0), await verify.NotificationOutboxMessages.CountAsync());
         if (hasReport) Assert.Null(request.UpdatedAt);
         else
         {

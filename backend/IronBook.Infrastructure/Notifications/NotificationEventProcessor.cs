@@ -28,6 +28,7 @@ public sealed class NotificationEventProcessor
             "Rejected" => "rejected",
             "Cancelled" => "cancelled",
             "Reassigned" => "reassigned",
+            "TrainingReportCreated" => "report created",
             _ => throw new InvalidDataException("Unknown coaching request notification action.")
         };
 
@@ -38,13 +39,23 @@ public sealed class NotificationEventProcessor
                 request.Id == message.TrainingRequestId && request.MemberProfileId == message.MemberProfileId, cancellationToken))
             throw new InvalidDataException("The event does not identify an existing member coaching request.");
 
+        var reportCreated = message.Action == "TrainingReportCreated";
+        if (reportCreated && (message.TrainingDate is null || message.TrainingDate == default(DateTime) ||
+            !await _dbContext.TrainingReports.AnyAsync(report =>
+                report.TrainingRequestId == message.TrainingRequestId && report.MemberProfileId == message.MemberProfileId &&
+                report.TrainingDate == message.TrainingDate, cancellationToken)))
+            throw new InvalidDataException("The event does not identify an existing member training report.");
+
         _dbContext.Notifications.Add(new Notification
         {
             EventId = message.EventId,
             MemberProfileId = message.MemberProfileId,
             TrainingRequestId = message.TrainingRequestId,
-            Title = $"Coaching request {action}",
-            Message = $"Your coaching request #{message.TrainingRequestId} at {message.CenterName} " +
+            Title = reportCreated ? "Training report available" : $"Coaching request {action}",
+            Message = reportCreated
+                ? $"Your training report for {message.TrainingDate:yyyy-MM-dd HH:mm} UTC with {message.TrainerName} " +
+                    $"at {message.CenterName} is available in your Progress Log."
+                : $"Your coaching request #{message.TrainingRequestId} at {message.CenterName} " +
                 $"for {message.RequestedStartAt:yyyy-MM-dd HH:mm} UTC with {message.TrainerName} was {action}.",
             CreatedAt = message.OccurredAt,
             IsRead = false

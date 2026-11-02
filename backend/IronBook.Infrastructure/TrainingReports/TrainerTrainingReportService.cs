@@ -1,4 +1,6 @@
 using IronBook.Application.TrainingReports;
+using IronBook.Application.Notifications;
+using System.Text.Json;
 using IronBook.Domain.Entities;
 using IronBook.Domain.Enums;
 using IronBook.Application.Auth;
@@ -55,6 +57,7 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
         var trainingRequest = await _dbContext.TrainingRequests
             .AsTracking()
             .Include(request => request.Center)
+            .Include(request => request.TrainerProfile)
             .Include(request => request.MemberProfile)
             .SingleOrDefaultAsync(
                 existing => existing.Id == request.TrainingRequestId && existing.TrainerProfileId == trainer.Id,
@@ -104,6 +107,17 @@ public sealed class TrainerTrainingReportService : ITrainerTrainingReportService
         };
 
         _dbContext.TrainingReports.Add(report);
+        // Keep the report, exercises and notification intent in the existing workflow transaction.
+        var notification = new CoachingRequestNotificationEvent(
+            Guid.NewGuid(), trainingRequest.Id, trainingRequest.MemberProfileId, "TrainingReportCreated",
+            trainingRequest.TrainerProfile.FirstName + " " + trainingRequest.TrainerProfile.LastName, trainingRequest.Center.Name,
+            trainingRequest.RequestedStartAt, report.CreatedAt, report.TrainingDate);
+        _dbContext.NotificationOutboxMessages.Add(new NotificationOutboxMessage
+        {
+            Id = notification.EventId,
+            Payload = JsonSerializer.Serialize(notification),
+            CreatedAt = notification.OccurredAt
+        });
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
