@@ -6,20 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IronBook.Infrastructure.Persistence;
 
-public sealed class DatabaseSeeder
+public sealed partial class DatabaseSeeder
 {
     private readonly IronBookDbContext _dbContext;
     private readonly IConfiguration _configuration;
     private readonly IPasswordHasher<Account> _passwordHasher;
+    private readonly TimeProvider _timeProvider;
 
     public DatabaseSeeder(
         IronBookDbContext dbContext,
         IConfiguration configuration,
-        IPasswordHasher<Account> passwordHasher)
+        IPasswordHasher<Account> passwordHasher,
+        TimeProvider? timeProvider = null)
     {
         _dbContext = dbContext;
         _configuration = configuration;
         _passwordHasher = passwordHasher;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task SeedDevelopmentDataAsync(CancellationToken cancellationToken = default)

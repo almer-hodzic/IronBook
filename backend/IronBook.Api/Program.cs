@@ -111,6 +111,7 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedDevelopmentDataAsync();
+    await seeder.SeedDemoCoreDataAsync(app.Environment.EnvironmentName);
 }
 
 app.UseAuthentication();
