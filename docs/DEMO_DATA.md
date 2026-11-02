@@ -8,6 +8,9 @@ Part 2A below extends the same opted-in seed with two Reception-backed purchases
 accounts, catalog, preferences, weekly classes and preservation rules remain in place; no second
 toggle or seed endpoint is introduced.
 
+Part 2B1 adds one historical coaching request and its Training Report/exercises, described below.
+It uses the same gates and transaction; no notification delivery data is seeded.
+
 ## Enable explicitly
 
 Both conditions are required:
@@ -227,16 +230,93 @@ the attempted seed, without altering unrelated business rows or resetting identi
 
 ### Explicit exclusions
 
-Part 2B remains deferred; no additional activity scenarios are introduced here.
+Part 2A stops at the two purchases. The separate Part 2B1 training scenario is described below.
 
 Every seeded Payment is Reception. `StripeCheckoutKey`, `StripePaymentIntentId` and
 `StripeRefundId` are all null. Card/Refunded records with invented provider IDs would not be
 valid Stripe-backed activity; use real sandbox QA or isolated test fixtures for those scenarios.
 
-No refunds, CheckIns, Coaching Requests/history, Training Reports/exercises, Progress Log entries,
-notifications/outbox rows, Group enrollments, workflow edge-case datasets or pagination stress
-datasets are seeded. No schema, migration, Flutter, notification, PDF, production payment/auth
-behavior or recommendation change is introduced.
+Part 2A introduced no refunds, CheckIns, Coaching Requests/history, Training Reports/exercises,
+Progress Log entries, notifications/outbox rows, Group enrollments, workflow edge-case datasets
+or pagination stress datasets. It introduced no schema, migration, Flutter, notification, PDF,
+production payment/auth behavior or recommendation change.
+
+## Part 2B1 - Historical coaching, Training Report and Progress Log
+
+The same opted-in Development run now inserts one historical training scenario when missing:
+
+| Record | Reserved ID | Initial state |
+| --- | --- | --- |
+| TrainingRequest | 1000001 | Approved; Mila Demo (`demo.member.strength`), Sara Demo (`demo.trainer.strength`), Marijin Dvor (Demo) |
+| CoachingRequestStatusHistory | 1000001 | One Pending -> Approved fact, unchanged Trainer, actor `demo.admin` |
+| TrainingReport | 1000001 | Linked to request 1000001 and the same Member, Trainer and Center |
+| TrainingReportExercises | 1000001-1000003 | Three ordered exercise rows linked to report 1000001 |
+
+The session starts at **09:00 UTC two calendar days before first insertion**, lasts 60 minutes,
+and has goal Build Strength and note `DEMO ONLY - full-body strength technique session.` This
+is one of the existing supported fixed start times. The existing scheduling check rejects any
+Pending/Approved personal or Active/Full Group conflict for the Trainer, across Centers, under
+the existing scheduling application lock. Adjacent intervals remain allowed. Conflicts reject
+the seed atomically rather than moving another booking or changing scheduling rules.
+
+There is no Completed request status: a reported session stays **Approved**. Normal Admin
+approval appends history, so this scenario includes the minimum corresponding historical
+Pending -> Approved row. It records the same Trainer on both sides, the existing demo Admin
+Account, and an explicit `DEMO ONLY` reason. Its ChangedAt equals the request's initial UpdatedAt,
+one day before the session. This is a labeled historical demo fact, not a claim that a live API
+approval took place. No creation/reassignment/cancellation history is invented.
+
+The report's TrainingDate is the session start. Its CreatedAt is five minutes after the 60-minute
+session ends, and its notes are `Completed a full-body strength session with controlled technique.`
+The exercise values use only current model fields:
+
+| Exercise | Sets | Reps | Weight | Notes |
+| --- | --- | --- | --- | --- |
+| Goblet squat | 3 | 10 | 16 kg | Controlled depth; steady tempo. |
+| Dumbbell bench press | 3 | 10 | 10 kg | Weight per dumbbell. |
+| Seated cable row | 3 | 12 | 25 kg | Keep shoulders relaxed. |
+
+### Read demonstration
+
+1. On mobile, log in as `demo.member.strength`. My Trainings shows the past Approved request
+   with Sara and Marijin Dvor (Demo). The Approved status filter continues to include it.
+2. Open Progress Log to see the session date, Sara, Center, report notes and all three exercises.
+   Progress Log is a projection of TrainingReport/Exercises; there is no independent Progress row
+   or calculated score to seed.
+3. Log in as `demo.trainer.strength`. The paged Trainer Dashboard includes this Approved request;
+   Client Details identifies Mila and reports `HasTrainingReport=true` through its existing UI.
+4. The Recovery Member/Trainer do not receive this Member's history, report or client details.
+
+No production queries, DTOs, controllers or business workflows are changed to make these reads work.
+The saved Approved request naturally contributes one real row to existing Trainer popularity counts;
+recommendation scoring/ranking code is unchanged.
+
+### Dates, ownership and preservation
+
+The request uses the same reserved-ID + immutable CreatedAt ownership stamp as Part 1/2A. That
+stamp is seed ownership metadata, not its actual submission time. Approval, session, TrainingDate
+and report creation dates are initialized relative to the first run and then preserved. A later
+enabled run never moves the historical session/report forward or inserts a future report.
+
+Child rows use their reserved IDs plus the foreign key to the verified owned request/report.
+This avoids inventing a stamp column for exercises. IDs occupied by unrelated parents are
+rejected; another report for the request is preserved and causes rejection instead of adoption
+or a duplicate report. Existing owned rows and edits are never overwritten. Missing details are
+restored only while the original relationship remains an Approved past session; ambiguous edits
+or competing history/report rows reject the attempted repair. The entire core + purchase +
+training seed is one transaction, so a collision or persistence failure leaves no partial scenario.
+
+### Intentional notification exclusion and remaining demo work
+
+Historical seeding inserts model rows directly. It does **not** call report mutation/event code,
+create Notifications, outbox rows, RabbitMQ messages or fake delivery/retry state. Normal live
+Training Report mutations retain their existing transactional outbox behavior unchanged. No DB
+invariant requires an event/outbox row for this historical report.
+
+Notification demos, CheckIns, Group enrollments, additional purchases, Stripe/refund activity,
+pagination stress and workflow/concurrency edge-case demo datasets remain deferred. CheckIn and
+auth-session records used by API tests are confined to disposable SQL databases, not seed content.
+No real `190027` data is changed during implementation or verification.
 
 ## Verification
 
@@ -251,6 +331,12 @@ Admin Payment list/confirmation and signed QR/Check-In validation paths. CheckIn
 those tests are produced only by the normal APIs in their disposable databases and deleted with
 the fixture; they are not part of the seed.
 
+`DemoTrainingSeedTests` also reuses these disposable SQL fixtures. It covers both gates, the
+Approved historical request and minimum history, report/exercise relationships, authenticated
+Member/Trainer reads and isolation, dates/edits/idempotency, unrelated-data preservation, each
+reserved-ID collision, rollback after SQL writes, scheduling conflicts/adjacency, uniqueness,
+concurrent seed runs and the intentional absence of notification/outbox/additional payment data.
+
 Tests cover both gates, core relationships/password hashing, stable IDs, reruns, preservation of
 unrelated records and demo edits, ID/username collisions, rollback, concurrent runs, weekly additions
 and real personalized recommendation HTTP responses with existing reasons. Test business rows used
@@ -263,6 +349,7 @@ dotnet build
 dotnet test IronBook.sln --no-build
 dotnet test IronBook.sln --no-build --filter FullyQualifiedName~DemoSeedTests
 dotnet test IronBook.sln --no-build --filter FullyQualifiedName~DemoMembershipSeedTests
+dotnet test IronBook.sln --no-build --filter FullyQualifiedName~DemoTrainingSeedTests
 git diff --check
 ```
 
@@ -279,3 +366,10 @@ focused Part 2A run passed all 26 tests. The earlier core-seed assertions were u
 the two newly approved purchases; their other safety, relationship and preservation checks remain.
 HTTP/QR/confirmation verification used disposable SQL databases only. No seed was applied to
 `190027`, no schema/migration was added, and mobile/desktop remained untouched.
+
+Part 2B1 validation: build passed with zero warnings/errors. All **693 backend tests** passed
+(666 baseline plus **27 training seed tests**), with zero failed/skipped. The separate focused
+run also passed all 27 tests. Earlier seed assertions were updated only for the new request,
+report, three exercises, single approval history and the resulting real Approved-request count.
+The production Member/Trainer reads, SQL rollback, ownership and scheduling checks use disposable
+databases. No seed was applied to `190027`, and no schema, migration or Flutter change was made.

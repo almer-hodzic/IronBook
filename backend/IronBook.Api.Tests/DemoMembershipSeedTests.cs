@@ -173,8 +173,8 @@ public class DemoMembershipSeedTests
         var before = await Capture(fixture); await fixture.SeedAsync(); Assert.Equal(before, await Capture(fixture));
         await using var db = fixture.CreateDb();
         Assert.Equal(2, await db.Memberships.CountAsync()); Assert.Equal(2, await db.Payments.CountAsync());
-        Assert.Empty(await db.CheckIns.ToListAsync()); Assert.Empty(await db.TrainingRequests.ToListAsync());
-        Assert.Empty(await db.GroupTrainingEnrollments.ToListAsync()); Assert.Empty(await db.TrainingReports.ToListAsync());
+        Assert.Empty(await db.CheckIns.ToListAsync()); Assert.Single(await db.TrainingRequests.ToListAsync());
+        Assert.Empty(await db.GroupTrainingEnrollments.ToListAsync()); Assert.Single(await db.TrainingReports.ToListAsync());
         Assert.Empty(await db.Notifications.ToListAsync()); Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
         Assert.Empty(await db.AuthSessions.ToListAsync());
     }

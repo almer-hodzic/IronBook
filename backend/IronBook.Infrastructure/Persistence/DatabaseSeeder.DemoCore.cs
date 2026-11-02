@@ -76,6 +76,7 @@ public sealed partial class DatabaseSeeder
         await EnsureDemoPreferenceAsync(DemoId + 1, "Recovery", ["conditioning"], cancellationToken);
         await SeedDemoWeekAsync(cancellationToken);
         await SeedDemoMembershipsAsync(cancellationToken);
+        await SeedDemoTrainingAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -151,6 +152,11 @@ public sealed partial class DatabaseSeeder
             return; // Preserve names, profiles, passwords, activation state, preferences and class edits.
         }
 
+        await InsertDemoRowAsync(seed, cancellationToken);
+    }
+
+    private async Task InsertDemoRowAsync<T>(T seed, CancellationToken cancellationToken) where T : class
+    {
         var entityType = _dbContext.Model.FindEntityType(typeof(T))!;
         static string Quote(string name) => "[" + name.Replace("]", "]]") + "]";
         // Table identifiers come only from EF metadata, never configuration or user input.

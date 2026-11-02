@@ -77,8 +77,8 @@ public class DemoSeedTests
         Assert.Equal(First, accounts[3].TrainerProfileId); Assert.Equal(First + 1, accounts[4].TrainerProfileId);
         Assert.Empty(await db.AuthSessions.ToListAsync()); Assert.Equal(2, await db.Memberships.CountAsync());
         Assert.Equal(2, await db.Payments.CountAsync()); Assert.Empty(await db.CheckIns.ToListAsync());
-        Assert.Empty(await db.TrainingRequests.ToListAsync()); Assert.Empty(await db.CoachingRequestStatusHistory.ToListAsync());
-        Assert.Empty(await db.TrainingReports.ToListAsync()); Assert.Empty(await db.TrainingReportExercises.ToListAsync());
+        Assert.Single(await db.TrainingRequests.ToListAsync()); Assert.Single(await db.CoachingRequestStatusHistory.ToListAsync());
+        Assert.Single(await db.TrainingReports.ToListAsync()); Assert.Equal(3, await db.TrainingReportExercises.CountAsync());
         Assert.Empty(await db.GroupTrainingEnrollments.ToListAsync()); Assert.Empty(await db.Notifications.ToListAsync());
         Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
     }
@@ -241,11 +241,11 @@ public class DemoSeedTests
         Assert.True(result.Trainers[0].Similarity > 0);
         Assert.Contains($"Matches your {category} preference.", result.Trainers[0].Reasons);
         Assert.Contains(result.GroupTrainings, row => row.Category == category && row.Similarity > 0 && row.Reasons.Contains($"Matches your {category} preference."));
-        Assert.All(result.Trainers, row => Assert.Equal(0, row.ApprovedCoachingRequestCount));
+        Assert.All(result.Trainers, row => Assert.Equal(row.Id == First ? 1 : 0, row.ApprovedCoachingRequestCount));
         Assert.All(result.GroupTrainings, row => Assert.Equal(0, row.EnrollmentCount));
         await using var db = fixture.CreateDb();
         Assert.Equal(2, await db.Memberships.CountAsync()); Assert.Equal(2, await db.Payments.CountAsync());
-        Assert.Empty(await db.TrainingRequests.ToListAsync()); Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
+        Assert.Single(await db.TrainingRequests.ToListAsync()); Assert.Empty(await db.NotificationOutboxMessages.ToListAsync());
     }
 
     [Fact]
