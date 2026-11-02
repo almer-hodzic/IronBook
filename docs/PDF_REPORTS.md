@@ -135,4 +135,30 @@ For visual QA only, `IRONBOOK_CHECKIN_PDF_QA_DIRECTORY` writes small, empty and 
 
 Validation: all 589 backend tests passed (563 baseline plus 26 focused SQL PDF tests), with zero failures/skips. The focused PDF run passed all 26 tests; the existing Admin-controller metadata assertion was updated only to include the new Admin-only controller and verified separately. Build completed with zero warnings/errors. Small, empty and nine-page/145-event samples were rendered and visually inspected with no clipping, overflow or broken columns. Disposable test databases were removed; `190027` was not used.
 
-Attendance desktop integration is deferred to Part B. Desktop/mobile, payment/refund lifecycle, Check-In creation/validation, QR signing, authentication architecture, database schema/migrations and seed data are unchanged. No charts, CSV/Excel, scheduling or email delivery are added.
+Backend Part A leaves desktop/mobile, payment/refund lifecycle, Check-In creation/validation, QR signing, authentication architecture, database schema/migrations and seed data unchanged. Attendance desktop integration is described below. No charts, CSV/Excel, scheduling or email delivery are added.
+
+## Attendance / Check-In Register - desktop Part B
+
+The Admin **Check-In** screen has **Download PDF** in its header. Since the existing screen is a QR-validation workspace, the action opens a small **Check-In Register** dialog rather than adding report filters to the scanner. Each opening defaults to the currently selected scanner Center and no dates. Report-only Center changes do not change the scanner Center or QR input. Center options reuse the existing complete database lookup, including inactive Centers for historical exports; **All centers** omits the Center filter.
+
+Optional **From Date** and **To Date** accept `yyyy-MM-dd` or a calendar picker, with **Clear filters** resetting both dates and the report Center to All. Invalid/reversed dates are rejected before download; the backend remains authoritative. On Download PDF, the dialog captures the current report fields and sends only set `centerId`, `fromDate` and `toDate` to `GET /api/admin/check-ins/pdf`. Calendar dates are serialized directly without local/UTC conversion. No pagination, QR, Member search, status or payment parameters are sent. The existing `BearerHttpClient` supplies the current token; 401 remains observable without automatic session handling.
+
+The backend PDF remains the source of content, ordering, summary and layout. Both registers share `PdfDownload`, `parsePdfDownload` and `PdfFileService`, generalized from the Payment Register helpers with unchanged Payment behavior. There is one binary validation/Content-Disposition parser and one native file implementation. Suggested names prefer `filename*`, then `filename`, with the Check-In fallback `ironbook-check-in-register.pdf` (Payment retains its original fallback).
+
+The existing `file_selector` Save As dialog lets the Admin choose the path; backend bytes are written unchanged. Cancellation is neutral. After save, **Open PDF** uses the same `url_launcher` system-viewer behavior as Payment Register. No new dependency, custom viewer or print engine is added. Opening requires a system PDF association.
+
+Export progress is independent of QR validation, prevents duplicate dialog/download actions and keeps filters stable through download/save. Controlled feedback covers API/filter, network, save and viewer failures. Closing during download prevents a late Save As dialog; asynchronous completion checks mounted state. The QR validation method, Center-selection rules, result view and reset behavior are unchanged.
+
+Focused tests mock native file-save/open operations; no live native Save As/Open or live-backend manual verification is claimed. They cover route/filters/dates, omitted parameters, current Bearer token, shared filenames/fallback, bytes, cancellation/failures, duplicate prevention, disposal, inactive Center reporting and unchanged scanner input/validation. Existing Payment Register PDF tests remain regression coverage. Validate from `desktop/ironbook_admin` with:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test --dart-define=API_BASE_URL=http://localhost:5100
+flutter test --dart-define=API_BASE_URL=http://localhost:5100 test/check_in_register_pdf_test.dart
+flutter build windows --debug --dart-define=API_BASE_URL=http://localhost:5100
+```
+
+Desktop Part B validation: dependency restore passed; analysis reported zero issues; all 209 desktop tests passed (176 baseline plus 33 focused Check-In PDF tests). The separate Check-In run passed all 33 tests, and the combined PDF regression run passed all 58 (33 Check-In plus the existing 25 Payment tests). Windows debug build succeeded. Native file dialogs/viewer launching were mocked, so these results do not claim manual live Save As/Open verification.
+
+Backend, database/schema/migrations, mobile, authentication architecture and payment/refund/QR workflows remain unchanged. No additional report or export format is implemented.

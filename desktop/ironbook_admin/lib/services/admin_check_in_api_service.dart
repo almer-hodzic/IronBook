@@ -8,6 +8,9 @@ import 'bearer_http_client.dart';
 
 import '../app_config.dart';
 import '../models/check_in_validation.dart';
+import '../models/admin_reports.dart';
+import '../models/pdf_download.dart';
+import 'pdf_download_response.dart';
 
 class AdminCheckInApiException implements Exception {
   const AdminCheckInApiException(this.message, {this.statusCode});
@@ -29,6 +32,66 @@ class AdminCheckInApiService {
        );
 
   final http.Client _client;
+
+  Future<PdfDownload> downloadCheckInRegister(AdminReportFilter filter) async {
+    try {
+      final query = Map<String, String>.fromEntries(
+        filter.query.entries.where((entry) => entry.value.trim().isNotEmpty),
+      );
+      final response = await _client
+          .get(
+            _buildUri('/api/admin/check-ins/pdf')
+                .replace(queryParameters: query.isEmpty ? null : query),
+            headers: {'Accept': 'application/pdf'},
+          )
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode != 200) {
+        var message = _readProblemMessage(
+          response.body,
+          'The Check-In Register could not be downloaded. Please retry.',
+        );
+        try {
+          final problem = jsonDecode(response.body);
+          if (problem is Map && problem['errors'] is Map) {
+            final errors = (problem['errors'] as Map).values
+                .whereType<List>()
+                .expand((values) => values)
+                .whereType<String>();
+            if (errors.isNotEmpty) message = errors.first;
+          }
+        } on FormatException {
+          /* Keep the existing controlled fallback. */
+        }
+        throw AdminCheckInApiException(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+      try {
+        return parsePdfDownload(
+          response,
+          fallbackFileName: 'ironbook-check-in-register.pdf',
+        );
+      } on FormatException catch (error) {
+        throw AdminCheckInApiException(error.message);
+      }
+    } on AuthenticationRequiredException {
+      throw const AdminCheckInApiException(
+        'Please log in to continue.',
+        statusCode: 401,
+      );
+    } on TimeoutException {
+      throw const AdminCheckInApiException(
+        'The Check-In Register download timed out. Please retry.',
+      );
+    } on http.ClientException {
+      throw const AdminCheckInApiException(
+        'Unable to connect to the API. Please retry.',
+      );
+    } on FormatException {
+      throw const AdminCheckInApiException('API_BASE_URL is not a valid URL.');
+    }
+  }
 
   Future<CheckInValidationResult> validateCheckIn({
     required String qrAccessToken,

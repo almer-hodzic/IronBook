@@ -7,11 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:ironbook_auth/ironbook_auth.dart';
 
 import 'bearer_http_client.dart';
+import 'pdf_download_response.dart';
 
 import '../app_config.dart';
 import '../models/admin_center.dart';
 import '../models/admin_payment.dart';
-import '../models/payment_register_download.dart';
+import '../models/pdf_download.dart';
 
 class AdminPaymentApiException implements Exception {
   const AdminPaymentApiException(this.message, {this.statusCode});
@@ -62,9 +63,7 @@ class AdminPaymentApiService {
     }
   }
 
-  Future<PaymentRegisterDownload> downloadPaymentRegister(
-    AdminPaymentFilter filter,
-  ) async {
+  Future<PdfDownload> downloadPaymentRegister(AdminPaymentFilter filter) async {
     if (_baseUrl.isEmpty) {
       throw const AdminPaymentApiException(
         'Configure API_BASE_URL to download the Payment Register.',
@@ -88,22 +87,11 @@ class AdminPaymentApiService {
           statusCode: response.statusCode,
         );
       }
-      final bytes = response.bodyBytes;
-      if (response.headers['content-type']
-                  ?.split(';')
-                  .first
-                  .trim()
-                  .toLowerCase() !=
-              'application/pdf' ||
-          bytes.length < 5 ||
-          ascii.decode(bytes.take(5).toList(), allowInvalid: true) != '%PDF-') {
-        throw const AdminPaymentApiException(
-          'The API did not return a valid PDF. Please retry.',
-        );
-      }
-      return PaymentRegisterDownload(
-        bytes: bytes,
-        fileName: _pdfFileName(response.headers['content-disposition']),
+      return _parse<PdfDownload>(
+        () => parsePdfDownload(
+          response,
+          fallbackFileName: 'ironbook-payment-register.pdf',
+        ),
       );
     } on AuthenticationRequiredException {
       throw const AdminPaymentApiException(
@@ -121,38 +109,6 @@ class AdminPaymentApiService {
     } on FormatException {
       throw const AdminPaymentApiException('Invalid API URL or PDF response.');
     }
-  }
-
-  static String _pdfFileName(String? header) {
-    const fallback = 'ironbook-payment-register.pdf';
-    if (header == null) return fallback;
-    String? name;
-    final extended = RegExp(
-      r"(?:^|;)\s*filename\*\s*=\s*UTF-8''([^;]+)",
-      caseSensitive: false,
-    ).firstMatch(header);
-    if (extended != null) {
-      try {
-        name = Uri.decodeComponent(extended.group(1)!.trim());
-      } on FormatException {
-        /* Try the ordinary filename instead. */
-      } on ArgumentError {
-        /* Invalid percent encoding: try the ordinary filename instead. */
-      }
-    }
-    name ??= RegExp(
-      r'(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]+))',
-      caseSensitive: false,
-    ).firstMatch(header)?.groups([1, 2]).whereType<String>().firstOrNull;
-    name = name?.trim();
-    if (name == null ||
-        name.length > 180 ||
-        name.toLowerCase() == '.pdf' ||
-        !name.toLowerCase().endsWith('.pdf') ||
-        RegExp(r'[\\/:*?"<>|\x00-\x1f]').hasMatch(name)) {
-      return fallback;
-    }
-    return name;
   }
 
   static String _errorMessage(http.Response response, String fallback) {

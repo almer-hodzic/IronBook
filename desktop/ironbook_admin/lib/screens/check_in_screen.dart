@@ -4,19 +4,23 @@ import '../models/admin_center.dart';
 import '../models/check_in_validation.dart';
 import '../services/admin_center_api_service.dart';
 import '../services/admin_check_in_api_service.dart';
+import '../services/pdf_file_service.dart';
 import '../theme/ironbook_admin_colors.dart';
 import '../widgets/admin_primitives.dart';
 import 'admin_shell.dart';
+import 'check_in_register_dialog.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({
     super.key,
     required this.centerApiService,
     required this.checkInApiService,
+    this.pdfFiles = const PdfFileService(),
   });
 
   final AdminCenterApiService centerApiService;
   final AdminCheckInApiService checkInApiService;
+  final PdfFileService pdfFiles;
 
   @override
   State<CheckInScreen> createState() => _CheckInScreenState();
@@ -27,6 +31,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final _scannerFocusNode = FocusNode();
 
   late Future<List<AdminCenter>> _centersFuture;
+  late Future<List<AdminCenter>> _reportCentersFuture;
+  bool _reportDialogOpen = false;
   List<AdminCenter> _activeCenters = const [];
   int? _selectedCenterId;
   bool _isValidating = false;
@@ -49,7 +55,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   void _loadCenters() {
-    _centersFuture = widget.centerApiService.getAllCenters().then((centers) {
+    _reportCentersFuture = widget.centerApiService.getAllCenters();
+    _centersFuture = _reportCentersFuture.then((centers) {
       final activeCenters = centers
           .where((center) => center.isActive)
           .toList(growable: false);
@@ -152,16 +159,49 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _scannerFocusNode.requestFocus();
   }
 
+  Future<void> _showRegister() async {
+    if (_reportDialogOpen) return;
+    setState(() {
+      _reportDialogOpen = true;
+    });
+    await showDialog<void>(
+      context: context,
+      builder: (context) => CheckInRegisterDialog(
+        api: widget.checkInApiService,
+        centers: _reportCentersFuture,
+        initialCenterId: _selectedCenterId,
+        files: widget.pdfFiles,
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _reportDialogOpen = false;
+    });
+    _focusScanner();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AdminPage(
       title: 'Check-In',
       subtitle: 'Validate member QR access against the selected center.',
-      actions: AdminStatusChip(
-        label: _isValidating ? 'Validating' : 'Ready',
-        variant: _isValidating
-            ? AdminStatusVariant.warning
-            : AdminStatusVariant.success,
+      actions: Wrap(
+        spacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          AdminButton.secondary(
+            key: const Key('download-check-in-register'),
+            label: 'Download PDF',
+            icon: Icons.download,
+            onPressed: _reportDialogOpen ? null : _showRegister,
+          ),
+          AdminStatusChip(
+            label: _isValidating ? 'Validating' : 'Ready',
+            variant: _isValidating
+                ? AdminStatusVariant.warning
+                : AdminStatusVariant.success,
+          ),
+        ],
       ),
       children: [
         FutureBuilder<List<AdminCenter>>(

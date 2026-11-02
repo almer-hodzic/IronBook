@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/admin_center.dart';
 import '../models/admin_payment.dart';
 import '../services/admin_payment_api_service.dart';
-import '../services/payment_register_file_service.dart';
+import '../services/pdf_file_service.dart';
 import '../widgets/admin_primitives.dart';
 import 'admin_shell.dart';
 
@@ -14,10 +14,10 @@ class AdminPaymentsScreen extends StatefulWidget {
   const AdminPaymentsScreen({
     super.key,
     required this.paymentApiService,
-    this.paymentRegisterFiles = const PaymentRegisterFileService(),
+    this.paymentRegisterFiles = const PdfFileService(),
   });
   final AdminPaymentApiService paymentApiService;
-  final PaymentRegisterFileService paymentRegisterFiles;
+  final PdfFileService paymentRegisterFiles;
   @override
   State<AdminPaymentsScreen> createState() => _AdminPaymentsScreenState();
 }
@@ -198,8 +198,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
       if (!mounted) return;
       setState(() {
         _exportError =
-            error is AdminPaymentApiException ||
-                error is PaymentRegisterFileException
+            error is AdminPaymentApiException || error is PdfFileException
             ? error.toString()
             : 'The Payment Register could not be saved. Please retry.';
       });

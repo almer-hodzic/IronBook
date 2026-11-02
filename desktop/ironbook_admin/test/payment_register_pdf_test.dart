@@ -7,10 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:ironbook_admin/models/admin_payment.dart';
-import 'package:ironbook_admin/models/payment_register_download.dart';
+import 'package:ironbook_admin/models/pdf_download.dart';
 import 'package:ironbook_admin/screens/admin_payments_screen.dart';
 import 'package:ironbook_admin/services/admin_payment_api_service.dart';
-import 'package:ironbook_admin/services/payment_register_file_service.dart';
+import 'package:ironbook_admin/services/pdf_file_service.dart';
 import 'package:ironbook_admin/theme/ironbook_admin_theme.dart';
 import 'package:ironbook_admin/widgets/admin_primitives.dart';
 
@@ -39,14 +39,14 @@ AdminPaymentApiService api(
   apiBaseUrl: 'http://localhost:5100/',
 );
 
-class FakeFiles extends PaymentRegisterFileService {
-  final saved = <PaymentRegisterDownload>[];
+class FakeFiles extends PdfFileService {
+  final saved = <PdfDownload>[];
   final opened = <String>[];
   Future<String?> Function()? saving;
   Future<void> Function()? opening;
 
   @override
-  Future<String?> save(PaymentRegisterDownload download) async {
+  Future<String?> save(PdfDownload download) async {
     saved.add(download);
     return saving == null ? r'C:\Reports\register.pdf' : await saving!();
   }
@@ -435,9 +435,8 @@ void main() {
     tester,
   ) async {
     final files = FakeFiles()
-      ..saving = () async => throw const PaymentRegisterFileException(
-        'The PDF could not be saved.',
-      );
+      ..saving = () async =>
+          throw const PdfFileException('The PDF could not be saved.');
     await showPayments(tester, files);
     await download(tester);
     expect(find.text('The PDF could not be saved.'), findsOneWidget);

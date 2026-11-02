@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/payment_register_download.dart';
+import '../models/pdf_download.dart';
 
-class PaymentRegisterFileException implements Exception {
-  const PaymentRegisterFileException(this.message);
+class PdfFileException implements Exception {
+  const PdfFileException(this.message);
   final String message;
 
   @override
@@ -14,10 +14,10 @@ class PaymentRegisterFileException implements Exception {
 }
 
 /// Native file operations are separate from the API and injectable in UI tests.
-class PaymentRegisterFileService {
-  const PaymentRegisterFileService();
+class PdfFileService {
+  const PdfFileService();
 
-  Future<String?> save(PaymentRegisterDownload download) async {
+  Future<String?> save(PdfDownload download) async {
     try {
       final location = await getSaveLocation(
         suggestedName: download.fileName,
@@ -29,7 +29,7 @@ class PaymentRegisterFileService {
       await File(location.path).writeAsBytes(download.bytes, flush: true);
       return location.path;
     } catch (_) {
-      throw const PaymentRegisterFileException(
+      throw const PdfFileException(
         'The PDF could not be saved. Check the destination and try again.',
       );
     }
@@ -38,10 +38,10 @@ class PaymentRegisterFileService {
   Future<void> open(String path) async {
     try {
       if (!await File(path).exists() || !await launchUrl(Uri.file(path))) {
-        throw const PaymentRegisterFileException('Unable to open PDF.');
+        throw const PdfFileException('Unable to open PDF.');
       }
     } catch (_) {
-      throw const PaymentRegisterFileException(
+      throw const PdfFileException(
         'The PDF could not be opened. Open the saved file with a PDF viewer.',
       );
     }
